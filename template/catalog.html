@@ -16,6 +16,7 @@
         <button type="submit" aria-label="Search">🔍</button>
       </form>
       <div class="auth">
+        <button id="sellerLoginBtn" type="button">Seller Login</button>
         <button id="loginBtn" type="button">Login</button>
         <button id="signupBtn" type="button">Signup</button>
       </div>
@@ -293,11 +294,32 @@
     </div>
   </div>
 
+  <div class="modal" id="modal-seller-login" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="seller-login-title">
+      <div class="modal-header">
+        <h2 id="seller-login-title">Seller Login</h2>
+        <button class="modal-close" type="button" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="seller-email">Email</label>
+        <input id="seller-email" type="email" placeholder="Enter your business email" autocomplete="email" />
+        <label for="seller-password">Password</label>
+        <input id="seller-password" type="password" placeholder="Enter your password" autocomplete="current-password" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="seller-login-submit">Login</button>
+        <button type="button" id="seller-signup-btn" class="modal-secondary">Not a Seller? Signup</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const loginBtn = document.getElementById('loginBtn');
     const signupBtn = document.getElementById('signupBtn');
+    const sellerLoginBtn = document.getElementById('sellerLoginBtn');
     const modalLogin = document.getElementById('modal-login');
     const modalSignup = document.getElementById('modal-signup');
+    const modalSellerLogin = document.getElementById('modal-seller-login');
 
     function openModal(modal) {
       modal.classList.add('active');
@@ -310,7 +332,8 @@
     }
 
     loginBtn.addEventListener('click', () => openModal(modalLogin));
-    signupBtn.addEventListener('click', () => openModal(modalSignup));
+    signupBtn.addEventListener('click', () => window.location.href = 'signup.html');
+    sellerLoginBtn.addEventListener('click', () => openModal(modalSellerLogin));
 
     document.querySelectorAll('[data-close]').forEach(button => {
       button.addEventListener('click', (event) => {
@@ -336,7 +359,10 @@
 
     // Demo behavior: close on submit
     document.getElementById('login-submit').addEventListener('click', () => closeModal(modalLogin));
-    document.getElementById('signup-submit').addEventListener('click', () => closeModal(modalSignup));
+    document.getElementById('seller-login-submit').addEventListener('click', () => closeModal(modalSellerLogin));
+    document.getElementById('seller-signup-btn').addEventListener('click', () => {
+      window.location.href = 'signup.html';
+    });
   </script>
 </body>
 </html>

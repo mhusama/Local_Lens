@@ -385,3 +385,15 @@ main {
   background: #5e2bdb;
 }
 
+.modal-footer button.modal-secondary {
+  background: transparent;
+  color: var(--brand);
+  border: 1px solid var(--brand);
+  margin-top: 10px;
+}
+
+.modal-footer button.modal-secondary:hover {
+  background: var(--brand);
+  color: white;
+}
+

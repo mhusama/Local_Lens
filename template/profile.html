@@ -3,107 +3,85 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Signup</title>
+  <title>Profile</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    .signup-container {
-      max-width: 520px;
+    .profile-container {
+      max-width: 1120px;
       margin: 40px auto;
       padding: 0 18px;
+    }
+
+    .profile-greeting {
+      margin-bottom: 40px;
+    }
+
+    .greeting-text {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .greeting-name {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--text);
+      margin: 0;
+    }
+
+    .profile-cards {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (max-width: 768px) {
+      .profile-cards {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .profile-card {
       background: var(--card);
       border-radius: var(--radius);
       padding: 32px;
       box-shadow: var(--shadow);
-    }
-
-    .signup-container h1 {
-      margin: 0 0 28px;
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--text);
       text-align: center;
-    }
-
-    .form-group {
-      margin-bottom: 18px;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 0.9rem;
-      color: var(--text);
-      margin-bottom: 8px;
-      font-weight: 500;
-    }
-
-    .form-group input {
-      width: 100%;
-      padding: 12px 14px;
-      border: 1px solid #d1d5db;
-      border-radius: 10px;
-      font-size: 0.95rem;
-      outline: none;
-      transition: border-color 0.2s ease;
-      box-sizing: border-box;
-    }
-
-    .form-group input:focus {
-      border-color: var(--brand);
-      box-shadow: 0 0 0 3px rgba(129, 66, 245, 0.2);
-    }
-
-    .form-actions {
-      display: flex;
-      gap: 12px;
-      margin-top: 24px;
-    }
-
-    .form-actions button {
-      flex: 1;
-      padding: 12px 18px;
-      border: none;
-      border-radius: 999px;
-      font-size: 0.95rem;
-      font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s ease;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
     }
 
-    .btn-primary {
-      background: var(--brand);
-      color: white;
+    .profile-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 18px 30px rgba(0,0,0,0.12);
     }
 
-    .btn-primary:hover {
-      background: #5e2bdb;
+    .card-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(129, 66, 245, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
     }
 
-    .btn-secondary {
-      background: transparent;
-      color: var(--brand);
-      border: 1px solid var(--brand);
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin: 0;
     }
 
-    .btn-secondary:hover {
-      background: var(--brand);
-      color: white;
-    }
-
-    .signup-footer {
-      text-align: center;
-      margin-top: 18px;
+    .card-description {
       font-size: 0.9rem;
       color: var(--muted);
-    }
-
-    .signup-footer a {
-      color: var(--brand);
-      text-decoration: none;
-      font-weight: 500;
-    }
-
-    .signup-footer a:hover {
-      text-decoration: underline;
+      margin: 0;
     }
   </style>
 </head>
@@ -124,46 +102,41 @@
   </header>
 
   <main>
-    <div class="signup-container">
-      <h1>Create Your Account</h1>
-      <form id="signup-form" onsubmit="event.preventDefault();">
-        <div class="form-group">
-          <label for="name">Full Name</label>
-          <input id="name" type="text" placeholder="Enter your full name" required />
+    <div class="profile-container">
+      <div class="profile-greeting">
+        <div class="greeting-text">Hello,</div>
+        <h1 class="greeting-name" id="user-name">Musayeb Hossain</h1>
+      </div>
+
+      <div class="profile-cards">
+        <div class="profile-card" onclick="window.location.href='edit-profile.html'">
+          <div class="card-icon">👤</div>
+          <h2 class="card-title">Edit Profile</h2>
+          <p class="card-description">Update your personal information</p>
         </div>
 
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input id="email" type="email" placeholder="Enter your email" autocomplete="email" required />
+        <div class="profile-card" onclick="window.location.href='orders.html'">
+          <div class="card-icon">📦</div>
+          <h2 class="card-title">Orders</h2>
+          <p class="card-description">View your order history</p>
         </div>
 
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input id="password" type="password" placeholder="Create a password" autocomplete="new-password" required />
+        <div class="profile-card" onclick="window.location.href='edit-address.html'">
+          <div class="card-icon">📍</div>
+          <h2 class="card-title">Edit Address</h2>
+          <p class="card-description">Manage your addresses</p>
         </div>
 
-        <div class="form-group">
-          <label for="confirm-password">Confirm Password</label>
-          <input id="confirm-password" type="password" placeholder="Confirm your password" autocomplete="new-password" required />
+        <div class="profile-card" onclick="window.location.href='edit-password.html'">
+          <div class="card-icon">🔒</div>
+          <h2 class="card-title">Edit Password</h2>
+          <p class="card-description">Change your password</p>
         </div>
-
-        <div class="form-group">
-          <label for="telephone">Telephone</label>
-          <input id="telephone" type="tel" placeholder="Enter your phone number" autocomplete="tel" required />
-        </div>
-
-        <div class="form-actions">
-          <button type="submit" class="btn-primary">Signup</button>
-          <button type="button" class="btn-secondary" onclick="window.history.back();">Cancel</button>
-        </div>
-      </form>
-
-      <div class="signup-footer">
-        Already have an account? <a href="javascript:void(0)" id="login-link">Login here</a>
       </div>
     </div>
   </main>
 
+  <!-- Login / Seller Login Modals -->
   <div class="modal" id="modal-login" aria-hidden="true">
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="login-title">
       <div class="modal-header">
@@ -201,11 +174,10 @@
     </div>
   </div>
 
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCkXPq4VjI_dGBpfI0r-jfVpuVQ6aVVE7w&libraries=places"></script>
   <script>
     const loginBtn = document.getElementById('loginBtn');
     const sellerLoginBtn = document.getElementById('sellerLoginBtn');
-    const loginLink = document.getElementById('login-link');
+    const signupBtn = document.getElementById('signupBtn');
     const modalLogin = document.getElementById('modal-login');
     const modalSellerLogin = document.getElementById('modal-seller-login');
 
@@ -220,11 +192,8 @@
     }
 
     loginBtn.addEventListener('click', () => openModal(modalLogin));
-    loginLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      openModal(modalLogin);
-    });
     sellerLoginBtn.addEventListener('click', () => openModal(modalSellerLogin));
+    signupBtn.addEventListener('click', () => window.location.href = 'signup.html');
 
     document.querySelectorAll('[data-close]').forEach(button => {
       button.addEventListener('click', (event) => {
@@ -253,22 +222,6 @@
     document.getElementById('seller-login-submit').addEventListener('click', () => closeModal(modalSellerLogin));
     document.getElementById('seller-signup-btn').addEventListener('click', () => {
       window.location.href = 'signup.html';
-    });
-
-    // Signup form validation and submission
-    document.getElementById('signup-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      
-      const password = document.getElementById('password').value;
-      const confirmPassword = document.getElementById('confirm-password').value;
-      
-      if (password !== confirmPassword) {
-        alert('Passwords do not match. Please try again.');
-        return;
-      }
-      
-      alert('Signup successful!');
-      // Here you would typically send the form data to your backend
     });
   </script>
 </body>

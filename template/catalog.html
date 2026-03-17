@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Catalog</title>
+  <link rel="stylesheet" href="style.css" />
+
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="brand" href="home.html">Local Lens</a>
+      <form class="search" onsubmit="event.preventDefault();">
+        <input type="search" placeholder="Search products" value="washing machine" aria-label="Search products" />
+        <button type="submit" aria-label="Search">🔍</button>
+      </form>
+      <div class="auth">
+        <button id="sellerLoginBtn" type="button">Seller Login</button>
+        <button id="loginBtn" type="button">Login</button>
+        <button id="signupBtn" type="button">Signup</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="meta">
+      <div><strong>8</strong> items found for <strong>"washing machine"</strong></div>
+      <div class="filters">
+        <select aria-label="Sort by">
+          <option>Best Match</option>
+          <option>Price: Low to High</option>
+          <option>Price: High to Low</option>
+          <option>Newest</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid">
+      <article class="card">
+        <img src="washingmachine.jpg" alt="Haier 8 KG Top Loading Washing Machine" />
+        <div class="card-body">
+          <h3 class="card-title">Haier 8 KG Top Loading Washing Machine</h3>
+          <div class="card-meta">
+            <div class="price">৳ 21,990</div>
+            <span class="badge">Best Price</span>
+          </div>
+          <div class="stars" aria-label="4.5 out of 5 stars">
+            <span>★</span><span>★</span><span>★</span><span>★</span><span>☆</span>
+            <span style="color: var(--muted);">(239)</span>
+          </div>
+          <div class="card-buttons">
+            <div class="button-row">
+              <button>Shop Profile</button>
+              <button>Location</button>
+            </div>
+            <div class="button-row">
+              <button>Item Description</button>
+            </div>
+            <div class="button-row">
+              <button>Buy</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="washingmachine.jpg" alt="Haier 8kg Top Load Automatic Washing Machine" />
+        <div class="card-body">
+          <h3 class="card-title">Haier 8kg Top Load Automatic Washing Machine</h3>
+          <div class="card-meta">
+            <div class="price">৳ 23,645</div>
+            <span class="badge">Trending</span>
+          </div>
+          <div class="stars" aria-label="4.4 out of 5 stars">
+            <span>★</span><span>★</span><span>★</span><span>★</span><span>☆</span>
+            <span style="color: var(--muted);">(15)</span>
+          </div>
+          <div class="card-buttons">
+            <div class="button-row">
+              <button>Shop Profile</button>
+              <button>Location</button>
+            </div>
+            <div class="button-row">
+              <button>Item Description</button>
+            </div>
+            <div class="button-row">
+              <button>Buy</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="washingmachine.jpg" alt="Haier 8KG Front Loading Washing Machine" />
+        <div class="card-body">
+          <h3 class="card-title">Haier 8KG Front Loading Washing Machine</h3>
+          <div class="card-meta">
+            <div class="price">৳ 42,990</div>
+            <span class="badge">Top Rated</span>
+          </div>
+          <div class="stars" aria-label="4.7 out of 5 stars">
+            <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+            <span style="color: var(--muted);">(3)</span>
+          </div>
+          <div class="card-buttons">
+            <div class="button-row">
+              <button>Shop Profile</button>
+              <button>Location</button>
+            </div>
+            <div class="button-row">
+              <button>Item Description</button>
+            </div>
+            <div class="button-row">
+              <button>Buy</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="washingmachine.jpg" alt="Haier 8 KG Top Load Automatic Washing Machine" />
+        <div class="card-body">
+          <h3 class="card-title">Haier 8 KG Top Load Automatic Washing Machine</h3>
+          <div class="card-meta">
+            <div class="price">৳ 28,789</div>
+            <span class="badge">Best Price</span>
+          </div>
+          <div class="stars" aria-label="4.3 out of 5 stars">
+            <span>★</span><span>★</span><span>★</span><span>★</span><span>☆</span>
+            <span style="color: var(--muted);">(186)</span>
+          </div>
+          <div class="card-buttons">
+            <div class="button-row">
+              <button>Shop Profile</button>
+              <button>Location</button>
+            </div>
+            <div class="button-row">
+              <button>Item Description</button>
+            </div>
+            <div class="button-row">
+              <button disabled>Available, No Delivery</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="washingmachine.jpg" alt="LG 8KG Front Load Washing Machine" />
+        <div class="card-body">
+          <h3 class="card-title">LG 8KG Front Load Washing Machine</h3>
+          <div class="card-meta">
+            <div class="price">৳ 35,990</div>
+            <span class="badge">Top Rated</span>
+          </div>
+          <div class="stars" aria-label="4.8 out of 5 stars">
+            <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+            <span style="color: var(--muted);">(42)</span>
+          </div>
+          <div class="card-buttons">
+            <div class="button-row">
+              <button>Shop Profile</button>
+              <button>Location</button>
+            </div>
+            <div class="button-row">
+              <button>Item Description</button>
+            </div>
+            <div class="button-row">
+              <button>Buy</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="washingmachine.jpg" alt="Samsung 9KG Top Load Washing Machine" />
+        <div class="card-body">
+          <h3 class="card-title">Samsung 9KG Top Load Washing Machine</h3>
+          <div class="card-meta">
+            <div class="price">৳ 29,500</div>
+            <span class="badge">Best Seller</span>
+          </div>
+          <div class="stars" aria-label="4.6 out of 5 stars">
+            <span>★</span><span>★</span><span>★</span><span>★</span><span>☆</span>
+            <span style="color: var(--muted);">(128)</span>
+          </div>
+          <div class="card-buttons">
+            <div class="button-row">
+              <button>Shop Profile</button>
+              <button>Location</button>
+            </div>
+            <div class="button-row">
+              <button>Item Description</button>
+            </div>
+            <div class="button-row">
+              <button>Buy</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="washingmachine.jpg" alt="Whirlpool 7KG Front Load Washing Machine" />
+        <div class="card-body">
+          <h3 class="card-title">Whirlpool 7KG Front Load Washing Machine</h3>
+          <div class="card-meta">
+            <div class="price">৳ 25,990</div>
+            <span class="badge">Trending</span>
+          </div>
+          <div class="stars" aria-label="4.4 out of 5 stars">
+            <span>★</span><span>★</span><span>★</span><span>★</span><span>☆</span>
+            <span style="color: var(--muted);">(67)</span>
+          </div>
+          <div class="card-buttons">
+            <div class="button-row">
+              <button>Shop Profile</button>
+              <button>Location</button>
+            </div>
+            <div class="button-row">
+              <button>Item Description</button>
+            </div>
+            <div class="button-row">
+              <button>Buy</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="washingmachine.jpg" alt="Bosch 8KG Front Load Washing Machine" />
+        <div class="card-body">
+          <h3 class="card-title">Bosch 8KG Front Load Washing Machine</h3>
+          <div class="card-meta">
+            <div class="price">৳ 45,990</div>
+            <span class="badge">Premium</span>
+          </div>
+          <div class="stars" aria-label="4.9 out of 5 stars">
+            <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+            <span style="color: var(--muted);">(23)</span>
+          </div>
+          <div class="card-buttons">
+            <div class="button-row">
+              <button>Shop Profile</button>
+              <button>Location</button>
+            </div>
+            <div class="button-row">
+              <button>Item Description</button>
+            </div>
+            <div class="button-row">
+              <button>Buy</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Add more cards here -->
+    </div>
+  </main>
+
+  <!-- Login / Signup Modals -->
+  <div class="modal" id="modal-login" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="login-title">
+      <div class="modal-header">
+        <h2 id="login-title">Login</h2>
+        <button class="modal-close" type="button" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="login-email">Email</label>
+        <input id="login-email" type="email" placeholder="Enter your email" autocomplete="email" />
+        <label for="login-password">Password</label>
+        <input id="login-password" type="password" placeholder="Enter your password" autocomplete="current-password" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="login-submit">Login</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-signup" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="signup-title">
+      <div class="modal-header">
+        <h2 id="signup-title">Signup</h2>
+        <button class="modal-close" type="button" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="signup-email">Email</label>
+        <input id="signup-email" type="email" placeholder="Enter your email" autocomplete="email" />
+        <label for="signup-password">Password</label>
+        <input id="signup-password" type="password" placeholder="Create a password" autocomplete="new-password" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="signup-submit">Signup</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-seller-login" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="seller-login-title">
+      <div class="modal-header">
+        <h2 id="seller-login-title">Seller Login</h2>
+        <button class="modal-close" type="button" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="seller-email">Email</label>
+        <input id="seller-email" type="email" placeholder="Enter your business email" autocomplete="email" />
+        <label for="seller-password">Password</label>
+        <input id="seller-password" type="password" placeholder="Enter your password" autocomplete="current-password" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="seller-login-submit">Login</button>
+        <button type="button" id="seller-signup-btn" class="modal-secondary">Not a Seller? Signup</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const loginBtn = document.getElementById('loginBtn');
+    const signupBtn = document.getElementById('signupBtn');
+    const sellerLoginBtn = document.getElementById('sellerLoginBtn');
+    const modalLogin = document.getElementById('modal-login');
+    const modalSignup = document.getElementById('modal-signup');
+    const modalSellerLogin = document.getElementById('modal-seller-login');
+
+    function openModal(modal) {
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeModal(modal) {
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    loginBtn.addEventListener('click', () => openModal(modalLogin));
+    signupBtn.addEventListener('click', () => window.location.href = 'signup.html');
+    sellerLoginBtn.addEventListener('click', () => openModal(modalSellerLogin));
+
+    document.querySelectorAll('[data-close]').forEach(button => {
+      button.addEventListener('click', (event) => {
+        const modal = event.target.closest('.modal');
+        if (modal) closeModal(modal);
+      });
+    });
+
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+          closeModal(modal);
+        }
+      });
+    });
+
+    // Close on Esc
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        document.querySelectorAll('.modal.active').forEach(closeModal);
+      }
+    });
+
+    // Demo behavior: close on submit
+    document.getElementById('login-submit').addEventListener('click', () => closeModal(modalLogin));
+    document.getElementById('seller-login-submit').addEventListener('click', () => closeModal(modalSellerLogin));
+    document.getElementById('seller-signup-btn').addEventListener('click', () => {
+      window.location.href = 'signup.html';
+    });
+  </script>
+</body>
+</html>

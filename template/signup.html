@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Signup</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .signup-container {
+      max-width: 520px;
+      margin: 40px auto;
+      padding: 0 18px;
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 32px;
+      box-shadow: var(--shadow);
+    }
+
+    .signup-container h1 {
+      margin: 0 0 28px;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.9rem;
+      color: var(--text);
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s ease;
+      box-sizing: border-box;
+    }
+
+    .form-group input:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(129, 66, 245, 0.2);
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .form-actions button {
+      flex: 1;
+      padding: 12px 18px;
+      border: none;
+      border-radius: 999px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--brand);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #5e2bdb;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--brand);
+      border: 1px solid var(--brand);
+    }
+
+    .btn-secondary:hover {
+      background: var(--brand);
+      color: white;
+    }
+
+    .signup-footer {
+      text-align: center;
+      margin-top: 18px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .signup-footer a {
+      color: var(--brand);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .signup-footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="brand" href="catalog.html">Local Lens</a>
+      <form class="search" onsubmit="event.preventDefault();">
+        <input type="search" placeholder="Search products" aria-label="Search products" />
+        <button type="submit" aria-label="Search">🔍</button>
+      </form>
+      <div class="auth">
+        <button id="sellerLoginBtn" type="button">Seller Login</button>
+        <button id="loginBtn" type="button">Login</button>
+        <button id="signupBtn" type="button">Signup</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="signup-container">
+      <h1>Create Your Account</h1>
+      <form id="signup-form" onsubmit="event.preventDefault();">
+        <div class="form-group">
+          <label for="name">Full Name</label>
+          <input id="name" type="text" placeholder="Enter your full name" required />
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input id="email" type="email" placeholder="Enter your email" autocomplete="email" required />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="Create a password" autocomplete="new-password" required />
+        </div>
+
+        <div class="form-group">
+          <label for="telephone">Telephone</label>
+          <input id="telephone" type="tel" placeholder="Enter your phone number" autocomplete="tel" required />
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">Signup</button>
+          <button type="button" class="btn-secondary" onclick="window.history.back();">Cancel</button>
+        </div>
+      </form>
+
+      <div class="signup-footer">
+        Already have an account? <a href="javascript:void(0)" id="login-link">Login here</a>
+      </div>
+    </div>
+  </main>
+
+  <div class="modal" id="modal-login" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="login-title">
+      <div class="modal-header">
+        <h2 id="login-title">Login</h2>
+        <button class="modal-close" type="button" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="login-email">Email</label>
+        <input id="login-email" type="email" placeholder="Enter your email" autocomplete="email" />
+        <label for="login-password">Password</label>
+        <input id="login-password" type="password" placeholder="Enter your password" autocomplete="current-password" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="login-submit">Login</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-seller-login" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="seller-login-title">
+      <div class="modal-header">
+        <h2 id="seller-login-title">Seller Login</h2>
+        <button class="modal-close" type="button" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="seller-email">Email</label>
+        <input id="seller-email" type="email" placeholder="Enter your business email" autocomplete="email" />
+        <label for="seller-password">Password</label>
+        <input id="seller-password" type="password" placeholder="Enter your password" autocomplete="current-password" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="seller-login-submit">Login</button>
+        <button type="button" id="seller-signup-btn" class="modal-secondary">Not a Seller? Signup</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCkXPq4VjI_dGBpfI0r-jfVpuVQ6aVVE7w&libraries=places"></script>
+  <script>
+    const loginBtn = document.getElementById('loginBtn');
+    const sellerLoginBtn = document.getElementById('sellerLoginBtn');
+    const loginLink = document.getElementById('login-link');
+    const modalLogin = document.getElementById('modal-login');
+    const modalSellerLogin = document.getElementById('modal-seller-login');
+
+    function openModal(modal) {
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeModal(modal) {
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    loginBtn.addEventListener('click', () => openModal(modalLogin));
+    loginLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      openModal(modalLogin);
+    });
+    sellerLoginBtn.addEventListener('click', () => openModal(modalSellerLogin));
+
+    document.querySelectorAll('[data-close]').forEach(button => {
+      button.addEventListener('click', (event) => {
+        const modal = event.target.closest('.modal');
+        if (modal) closeModal(modal);
+      });
+    });
+
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+          closeModal(modal);
+        }
+      });
+    });
+
+    // Close on Esc
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        document.querySelectorAll('.modal.active').forEach(closeModal);
+      }
+    });
+
+    // Demo behavior: close on submit
+    document.getElementById('login-submit').addEventListener('click', () => closeModal(modalLogin));
+    document.getElementById('seller-login-submit').addEventListener('click', () => closeModal(modalSellerLogin));
+    document.getElementById('seller-signup-btn').addEventListener('click', () => {
+      window.location.href = 'signup.html';
+    });
+
+    // Signup form validation and submission
+    document.getElementById('signup-form').addEventListener('submit', (e) => {
+      alert('Signup successful!');
+      // Here you would typically send the form data to your backend
+    });
+
+    // Initialize map when page loads
+    window.addEventListener('load', initMap);
+  </script>
+</body>
+</html>

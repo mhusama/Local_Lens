@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Order History</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .orders-container {
+      max-width: 1120px;
+      margin: 40px auto;
+      padding: 0 18px;
+    }
+
+    .orders-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .orders-header h1 {
+      margin: 0;
+      font-size: 2rem;
+      color: var(--brand);
+      letter-spacing: -0.02em;
+    }
+
+    .orders-note {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin: 0;
+    }
+
+    .order-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(0,0,0,0.06);
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+
+    .order-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .order-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .order-meta .p1 {
+      margin: 0;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: #111827;
+    }
+
+    .order-meta .p2 {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .order-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--brand);
+      background: rgba(129, 66, 245, 0.1);
+    }
+
+    .order-status .status-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #34d399;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 14px;
+    }
+
+    .order-body {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+      padding-top: 18px;
+      border-top: 1px solid rgba(0,0,0,0.08);
+    }
+
+    .order-product {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .product-thumb {
+      width: 68px;
+      height: 68px;
+      border-radius: 14px;
+      background: #f2f2f5;
+      overflow: hidden;
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    .product-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .product-info .p1 {
+      margin: 0;
+      font-weight: 700;
+      font-size: 1rem;
+      color: #111827;
+    }
+
+    .product-info .p2 {
+      margin: 4px 0 0;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .order-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .order-total {
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--brand);
+    }
+
+    .btn-view {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 12px;
+      background: var(--brand);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .btn-view:hover {
+      background: #5e2bdb;
+    }
+
+    @media (max-width: 640px) {
+      .order-body {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .order-actions {
+        justify-content: space-between;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="brand" href="catalog.html">Local Lens</a>
+      <form class="search" onsubmit="event.preventDefault();">
+        <input type="search" placeholder="Search products" aria-label="Search products" />
+        <button type="submit" aria-label="Search">🔍</button>
+      </form>
+      <div class="auth">
+        <button id="sellerLoginBtn" type="button">Seller Login</button>
+        <button id="loginBtn" type="button">Login</button>
+        <button id="signupBtn" type="button">Signup</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="orders-container">
+      <div class="orders-header">
+        <div>
+          <h1>Order History</h1>
+          <p class="orders-note">Review your recent orders and check their status.</p>
+        </div>
+      </div>
+
+      <div class="order-card">
+        <div class="order-header">
+          <div class="order-meta">
+            <p class="p1">Order# 881341</p>
+            <p class="p2">Date Added: 08 Mar 2026</p>
+          </div>
+
+          <div class="order-status">
+            <span class="status-icon">✓</span>
+            <span>Canceled</span>
+          </div>
+        </div>
+
+        <div class="order-body">
+          <div class="order-product">
+            <div class="product-thumb">
+              <img src="../images/p1.jpg" alt="Order item" />
+            </div>
+            <div class="product-info">
+              <p class="p1">QCY T13</p>
+              <p class="p2">+1 Item(s)</p>
+            </div>
+          </div>
+
+          <div class="order-actions">
+            <div class="order-total">1,633৳</div>
+            <button class="btn-view" type="button">View</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="order-card">
+        <div class="order-header">
+          <div class="order-meta">
+            <p class="p1">Order# 854408</p>
+            <p class="p2">Date Added: 01 Feb 2026</p>
+          </div>
+
+          <div class="order-status">
+            <span class="status-icon">✓</span>
+            <span>Delivered</span>
+          </div>
+        </div>
+
+        <div class="order-body">
+          <div class="order-product">
+            <div class="product-thumb">
+              <img src="../images/p2.jpg" alt="Order item" />
+            </div>
+            <div class="product-info">
+              <p class="p1">Recci REP-L35 3.5mm Wired Earphone</p>
+              <p class="p2">+1 Item(s)</p>
+            </div>
+          </div>
+
+          <div class="order-actions">
+            <div class="order-total">685৳</div>
+            <button class="btn-view" type="button">View</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Login / Seller Login Modals -->
+  <div class="modal" id="modal-login" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="login-title">
+      <div class="modal-header">
+        <h2 id="login-title">Login</h2>
+        <button class="modal-close" type="button" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="login-email">Email</label>
+        <input id="login-email" type="email" placeholder="Enter your email" autocomplete="email" />
+        <label for="login-password">Password</label>
+        <input id="login-password" type="password" placeholder="Enter your password" autocomplete="current-password" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="login-submit">Login</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-seller-login" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="seller-login-title">
+      <div class="modal-header">
+        <h2 id="seller-login-title">Seller Login</h2>
+        <button class="modal-close" type="button" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="seller-email">Email</label>
+        <input id="seller-email" type="email" placeholder="Enter your business email" autocomplete="email" />
+        <label for="seller-password">Password</label>
+        <input id="seller-password" type="password" placeholder="Enter your password" autocomplete="current-password" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="seller-login-submit">Login</button>
+        <button type="button" id="seller-signup-btn" class="modal-secondary">Not a Seller? Signup</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const loginBtn = document.getElementById('loginBtn');
+    const sellerLoginBtn = document.getElementById('sellerLoginBtn');
+    const signupBtn = document.getElementById('signupBtn');
+    const modalLogin = document.getElementById('modal-login');
+    const modalSellerLogin = document.getElementById('modal-seller-login');
+
+    function openModal(modal) {
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeModal(modal) {
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    loginBtn.addEventListener('click', () => openModal(modalLogin));
+    sellerLoginBtn.addEventListener('click', () => openModal(modalSellerLogin));
+    signupBtn.addEventListener('click', () => window.location.href = 'signup.html');
+
+    document.querySelectorAll('[data-close]').forEach(button => {
+      button.addEventListener('click', (event) => {
+        const modal = event.target.closest('.modal');
+        if (modal) closeModal(modal);
+      });
+    });
+
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+          closeModal(modal);
+        }
+      });
+    });
+
+    // Close on Esc
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        document.querySelectorAll('.modal.active').forEach(closeModal);
+      }
+    });
+
+    // Demo behavior: close on submit
+    document.getElementById('login-submit').addEventListener('click', () => closeModal(modalLogin));
+    document.getElementById('seller-login-submit').addEventListener('click', () => closeModal(modalSellerLogin));
+    document.getElementById('seller-signup-btn').addEventListener('click', () => {
+      window.location.href = 'signup.html';
+    });
+  </script>
+</body>
+</html>

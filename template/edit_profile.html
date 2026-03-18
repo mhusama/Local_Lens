@@ -3,85 +3,107 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Profile</title>
+  <title>Edit Profile</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    .profile-container {
-      max-width: 1120px;
+    .edit-container {
+      max-width: 520px;
       margin: 40px auto;
       padding: 0 18px;
-    }
-
-    .profile-greeting {
-      margin-bottom: 40px;
-    }
-
-    .greeting-text {
-      font-size: 0.95rem;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
-
-    .greeting-name {
-      font-size: 2rem;
-      font-weight: 800;
-      color: var(--text);
-      margin: 0;
-    }
-
-    .profile-cards {
-      display: grid;
-      gap: 24px;
-      grid-template-columns: repeat(2, 1fr);
-    }
-
-    @media (max-width: 768px) {
-      .profile-cards {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .profile-card {
       background: var(--card);
       border-radius: var(--radius);
       padding: 32px;
       box-shadow: var(--shadow);
-      text-align: center;
-      cursor: pointer;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
     }
 
-    .profile-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 18px 30px rgba(0,0,0,0.12);
-    }
-
-    .card-icon {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      background: rgba(129, 66, 245, 0.15);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 32px;
-    }
-
-    .card-title {
-      font-size: 1.1rem;
-      font-weight: 600;
+    .edit-container h1 {
+      margin: 0 0 28px;
+      font-size: 1.5rem;
+      font-weight: 700;
       color: var(--text);
-      margin: 0;
+      text-align: center;
     }
 
-    .card-description {
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.9rem;
+      color: var(--text);
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s ease;
+      box-sizing: border-box;
+    }
+
+    .form-group input:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(129, 66, 245, 0.2);
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .form-actions button {
+      flex: 1;
+      padding: 12px 18px;
+      border: none;
+      border-radius: 999px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--brand);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #5e2bdb;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--brand);
+      border: 1px solid var(--brand);
+    }
+
+    .btn-secondary:hover {
+      background: var(--brand);
+      color: white;
+    }
+
+    .edit-footer {
+      text-align: center;
+      margin-top: 18px;
       font-size: 0.9rem;
       color: var(--muted);
-      margin: 0;
+    }
+
+    .edit-footer a {
+      color: var(--brand);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .edit-footer a:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
@@ -102,36 +124,32 @@
   </header>
 
   <main>
-    <div class="profile-container">
-      <div class="profile-greeting">
-        <div class="greeting-text">Hello,</div>
-        <h1 class="greeting-name" id="user-name">Musayeb Hossain</h1>
-      </div>
-
-      <div class="profile-cards">
-        <div class="profile-card" onclick="window.location.href='edit_profile.html'">
-          <div class="card-icon">👤</div>
-          <h2 class="card-title">Edit Profile</h2>
-          <p class="card-description">Update your personal information</p>
+    <div class="edit-container">
+      <h1>Edit Profile</h1>
+      <form id="edit-form" onsubmit="event.preventDefault();">
+        <div class="form-group">
+          <label for="name">Name</label>
+          <input id="name" type="text" placeholder="Enter your name" required />
         </div>
 
-        <div class="profile-card" onclick="window.location.href='orders.html'">
-          <div class="card-icon">📦</div>
-          <h2 class="card-title">Orders</h2>
-          <p class="card-description">View your order history</p>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="Enter your password" autocomplete="current-password" required />
         </div>
 
-        <div class="profile-card" onclick="window.location.href='edit_address.html'">
-          <div class="card-icon">📍</div>
-          <h2 class="card-title">Edit Address</h2>
-          <p class="card-description">Manage your addresses</p>
+        <div class="form-group">
+          <label for="telephone">Telephone</label>
+          <input id="telephone" type="tel" placeholder="Enter your phone number" autocomplete="tel" required />
         </div>
 
-        <div class="profile-card" onclick="window.location.href='edit_password.html'">
-          <div class="card-icon">🔒</div>
-          <h2 class="card-title">Edit Password</h2>
-          <p class="card-description">Change your password</p>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">Save Changes</button>
+          <button type="button" class="btn-secondary" onclick="window.location.href='profile.html';">Cancel</button>
         </div>
+      </form>
+
+      <div class="edit-footer">
+        <a href="profile.html">Back to Profile</a>
       </div>
     </div>
   </main>

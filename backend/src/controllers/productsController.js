@@ -1,8 +1,54 @@
 import Product from "../models/Product.js";
 
+const mapProductForClient = (p) => {
+    const coords = p.location?.coordinates;
+    let lat;
+    let lon;
+    if (Array.isArray(coords) && coords.length >= 2) {
+        lon = coords[0];
+        lat = coords[1];
+    }
+    return {
+        id: p._id?.toString(),
+        name: p.name,
+        price: p.price,
+        shopName: p.shop?.shopName ?? "Unknown",
+        location: lat != null && lon != null ? { lat, lon } : null,
+        rating: p.ratings?.average ?? 0,
+    };
+};
+
 export const getProducts = async (req, res) => {
     try {
-        const products = await Product.find().populate('shop', 'shopName address location');
+        const { name, lat, lon, radius } = req.query;
+
+        if (name != null && lat != null && lon != null && radius != null) {
+            const userLat = parseFloat(lat);
+            const userLon = parseFloat(lon);
+            const maxMeters = parseFloat(radius);
+
+            if (Number.isNaN(userLat) || Number.isNaN(userLon) || Number.isNaN(maxMeters)) {
+                return res.status(400).json({ message: "Invalid lat, lon, or radius" });
+            }
+
+            const products = await Product.find({
+                name: { $regex: String(name), $options: "i" },
+                location: {
+                    $nearSphere: {
+                        $geometry: {
+                            type: "Point",
+                            coordinates: [userLon, userLat],
+                        },
+                        $maxDistance: maxMeters,
+                    },
+                },
+            }).populate("shop", "shopName address location");
+
+            const mapped = products.map(mapProductForClient);
+            return res.status(200).json({ products: mapped });
+        }
+
+        const products = await Product.find().populate("shop", "shopName address location");
         res.status(200).json({ products });
     } catch (error) {
         console.error(error);

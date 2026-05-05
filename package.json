@@ -1,5 +1,7 @@
 {
   "dependencies": {
-    "@builder.io/react": "^9.3.0"
+    "@builder.io/react": "^9.3.0",
+    "react": "^19.2.5",
+    "react-router": "^7.14.2"
   }
 }

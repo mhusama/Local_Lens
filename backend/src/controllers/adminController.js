@@ -1,16 +1,16 @@
-import User from "../models/User.js";
+import Admin from "../models/Admin.js";
 
-export const getUsers = async (req, res) => {
+export const getAdmins = async (req, res) => {
     try {
-        const users = await User.find({}, '-password'); // Exclude password from response
-        res.status(200).json({ users });
+        const admins = await Admin.find({}, '-password'); // Exclude password from response
+        res.status(200).json({ admins });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });
     }
 };
 
-export const createUser = async (req, res) => {
+export const createAdmin = async (req, res) => {
     try {
         const { name, email, password, phone, longitude, latitude } = req.body;
 
@@ -18,7 +18,7 @@ export const createUser = async (req, res) => {
             return res.status(400).json({ message: "All fields including location coordinates are required" });
         }
 
-        const newUser = new User({
+        const newAdmin = new Admin({
             name,
             email,
             password, // In a real app, hash the password
@@ -29,9 +29,9 @@ export const createUser = async (req, res) => {
             },
         });
 
-        await newUser.save();
+        await newAdmin.save();
 
-        res.status(201).json({ message: "User created successfully", user: newUser });
+        res.status(201).json({ message: "Admin created successfully", admin: newAdmin });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });

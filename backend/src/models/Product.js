@@ -6,7 +6,7 @@ const productSchema = new mongoose.Schema({
         required: true,
     },
     description: {
-        type: String,
+        type: [String], // Array of description points
         required: true,
     },
     price: {
@@ -23,18 +23,59 @@ const productSchema = new mongoose.Schema({
         ref: 'Shop',
         required: true,
     },
-    image: {
-        type: String, // URL to product image
-        default: null,
+    images: {
+        type: [String], // Array of image URLs
+        default: [],
     },
     stock: {
         type: Number,
         default: 0,
         min: 0,
     },
-    unit: {
-        type: String, // kg, pieces, liters, etc.
-        default: 'pieces',
+    ratings: {
+        average: {
+            type: Number,
+            default: 0,
+            min: 0,
+            max: 5,
+        },
+        count: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+    },
+    reviews: [{
+        user: {
+            type: String, // User's name
+            required: true,
+        },
+        rating: {
+            type: Number,
+            required: true,
+            min: 1,
+            max: 5,
+        },
+        comment: {
+            type: String,
+            required: true,
+        },
+    }],
+    totalPurchases: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+    location: {
+        type: {
+            type: String,
+            enum: ['Point'],
+            default: 'Point',
+        },
+        coordinates: {
+            type: [Number], // [longitude, latitude]
+            required: true,
+        },
     },
     createdAt: {
         type: Date,
@@ -42,6 +83,9 @@ const productSchema = new mongoose.Schema({
     },
 });
 
-const Product = mongoose.model("Product", productSchema);
+// Add index for geospatial queries
+productSchema.index({ location: '2dsphere' });
+
+const Product = mongoose.model("Product", productSchema, "products");
 
 export default Product;

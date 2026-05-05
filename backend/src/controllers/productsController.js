@@ -2,7 +2,7 @@ import Product from "../models/Product.js";
 
 export const getProducts = async (req, res) => {
     try {
-        const products = await Product.find().populate('shop', 'name address location');
+        const products = await Product.find().populate('shop', 'shopName address location');
         res.status(200).json({ products });
     } catch (error) {
         console.error(error);
@@ -12,27 +12,33 @@ export const getProducts = async (req, res) => {
 
 export const createProduct = async (req, res) => {
     try {
-        const { name, description, price, category, shop, image, stock, unit } = req.body;
+        const { name, description, price, category, shop, images, stock, longitude, latitude } = req.body;
 
-        if (!name || !description || price === undefined || !category || !shop) {
-            return res.status(400).json({ message: "Name, description, price, category, and shop are required" });
+        if (!name || !description || price === undefined || !category || !shop || longitude === undefined || latitude === undefined) {
+            return res.status(400).json({ message: "Name, description, price, category, shop, and location coordinates are required" });
         }
+
+        // Ensure description is an array
+        const descriptionArray = Array.isArray(description) ? description : [description];
 
         const newProduct = new Product({
             name,
-            description,
+            description: descriptionArray,
             price: parseFloat(price),
             category,
             shop,
-            image: image || null,
+            images: images || [],
             stock: stock ? parseInt(stock) : 0,
-            unit: unit || 'pieces',
+            location: {
+                type: 'Point',
+                coordinates: [parseFloat(longitude), parseFloat(latitude)],
+            },
         });
 
         await newProduct.save();
 
         // Populate shop info in response
-        await newProduct.populate('shop', 'name address location');
+        await newProduct.populate('shop', 'shopName address location');
 
         res.status(201).json({ message: "Product created successfully", product: newProduct });
     } catch (error) {
@@ -44,7 +50,7 @@ export const createProduct = async (req, res) => {
 export const getProductsByShop = async (req, res) => {
     try {
         const { shopId } = req.params;
-        const products = await Product.find({ shop: shopId }).populate('shop', 'name address location');
+        const products = await Product.find({ shop: shopId }).populate('shop', 'shopName address location');
         res.status(200).json({ products });
     } catch (error) {
         console.error(error);
@@ -62,7 +68,7 @@ export const searchProducts = async (req, res) => {
         if (query) {
             filter.$or = [
                 { name: { $regex: query, $options: 'i' } },
-                { description: { $regex: query, $options: 'i' } }
+                { description: { $elemMatch: { $regex: query, $options: 'i' } } }
             ];
         }
 
@@ -78,7 +84,7 @@ export const searchProducts = async (req, res) => {
             if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
         }
 
-        const products = await Product.find(filter).populate('shop', 'name address location');
+        const products = await Product.find(filter).populate('shop', 'shopName address location');
         res.status(200).json({ products });
     } catch (error) {
         console.error(error);

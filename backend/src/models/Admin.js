@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema({
+const adminSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
@@ -36,8 +36,8 @@ const userSchema = new mongoose.Schema({
 });
 
 // Add index for geospatial queries
-userSchema.index({ location: '2dsphere' });
+adminSchema.index({ location: '2dsphere' });
 
-const User = mongoose.model("User", userSchema, "users");
+const Admin = mongoose.model("Admin", adminSchema, "admins");
 
-export default User;
+export default Admin;

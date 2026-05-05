@@ -2,7 +2,7 @@ import Shop from "../models/Shop.js";
 
 export const getShops = async (req, res) => {
     try {
-        const shops = await Shop.find().populate('owner', 'name email');
+        const shops = await Shop.find().populate('user_id', 'name email');
         res.status(200).json({ shops });
     } catch (error) {
         console.error(error);
@@ -12,28 +12,34 @@ export const getShops = async (req, res) => {
 
 export const createShop = async (req, res) => {
     try {
-        const { name, description, address, phone, owner, latitude, longitude } = req.body;
+        const { shopName, description, category, phone, user_id, longitude, latitude, address, openingHours, rating, totalReviews, followers, isOpen } = req.body;
 
-        if (!name || !description || !address || !phone || !owner || latitude === undefined || longitude === undefined) {
-            return res.status(400).json({ message: "All fields are required" });
+        if (!shopName || !description || !category || !phone || !user_id || longitude === undefined || latitude === undefined || !address || !openingHours) {
+            return res.status(400).json({ message: "shopName, description, category, phone, user_id, location coordinates, address, and openingHours are required" });
         }
 
         const newShop = new Shop({
-            name,
+            user_id,
+            shopName,
             description,
-            address,
+            category,
             phone,
-            owner,
             location: {
-                latitude,
-                longitude,
+                type: 'Point',
+                coordinates: [parseFloat(longitude), parseFloat(latitude)],
             },
+            address,
+            openingHours,
+            rating: rating || 0,
+            totalReviews: totalReviews || 0,
+            followers: followers || 0,
+            isOpen: isOpen !== undefined ? isOpen : true,
         });
 
         await newShop.save();
 
-        // Populate owner info in response
-        await newShop.populate('owner', 'name email');
+        // Populate user info in response
+        await newShop.populate('user_id', 'name email');
 
         res.status(201).json({ message: "Shop created successfully", shop: newShop });
     } catch (error) {
@@ -45,7 +51,7 @@ export const createShop = async (req, res) => {
 export const getShopsByOwner = async (req, res) => {
     try {
         const { ownerId } = req.params;
-        const shops = await Shop.find({ owner: ownerId }).populate('owner', 'name email');
+        const shops = await Shop.find({ user_id: ownerId }).populate('user_id', 'name email');
         res.status(200).json({ shops });
     } catch (error) {
         console.error(error);

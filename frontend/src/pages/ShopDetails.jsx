@@ -1,277 +1,724 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router';
-import toast, { Toaster } from 'react-hot-toast';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import Cropper from 'react-easy-crop';
+import api from '../api/client';
+import { PRODUCT_CATEGORIES } from '../constants/categories';
+import { getCroppedBlob } from '../utils/cropImage';
 
-function ShopDetails() {
+const INITIAL_PRODUCT_FORM = {
+  name: '',
+  category: PRODUCT_CATEGORIES[0],
+  price: '',
+  discountType: 'percentage',
+  flatDiscount: '',
+  percentageDiscount: '',
+  finalPrice: '',
+  stock: '',
+  descriptionText: '',
+};
+
+export default function ShopDetails() {
   const { shopId } = useParams();
   const navigate = useNavigate();
+
   const [shop, setShop] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showAddProduct, setShowAddProduct] = useState(false);
-  const [newProduct, setNewProduct] = useState({
-    name: '',
-    description: '',
-    price: '',
-    category: '',
-    stock: '',
-    unit: 'pieces',
-  });
+  const [error, setError] = useState('');
+
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [isProductFormOpen, setIsProductFormOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [productForm, setProductForm] = useState(INITIAL_PRODUCT_FORM);
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [cropTargetId, setCropTargetId] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedPixels, setCroppedPixels] = useState(null);
+
+  const user = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || 'null');
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const isOwner = useMemo(() => {
+    const currentUserId = String(user?.id || user?._id || '');
+    const ownerId = String(shop?.user_id?._id || shop?.user_id || '');
+    return Boolean(currentUserId && ownerId && currentUserId === ownerId);
+  }, [user, shop]);
+
+  const fetchShopAndProducts = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [shopRes, productsRes] = await Promise.all([
+        api.get(`/shops/${shopId}`),
+        api.get('/products', { params: { shop_id: shopId } }),
+      ]);
+
+      setShop(shopRes.data?.shop || null);
+      setProducts(Array.isArray(productsRes.data?.products) ? productsRes.data.products : []);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to load shop details';
+      setError(msg);
+      setShop(null);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchShopAndProducts();
   }, [shopId]);
 
-  const fetchShopAndProducts = async () => {
+  const resetProductForm = () => {
+    selectedImages.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+    setProductForm(INITIAL_PRODUCT_FORM);
+    setEditingProduct(null);
+    setSelectedImages([]);
+    setCropTargetId(null);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedPixels(null);
+  };
+
+  const openAddProduct = () => {
+    resetProductForm();
+    setIsProductFormOpen(true);
+  };
+
+  const openEditProduct = (product) => {
+    const presetType = product.discountType || (product.discountPercentage != null ? 'percentage' : 'flat');
+    const presetValue =
+      product.discountValue != null
+        ? product.discountValue
+        : presetType === 'flat'
+          ? (product.reducedPrice != null && product.price != null ? Number(product.price) - Number(product.reducedPrice) : '')
+          : (product.discountPercentage ?? '');
+
+    setEditingProduct(product);
+    setProductForm({
+      name: product.name || '',
+      category: product.category || PRODUCT_CATEGORIES[0],
+      price: product.price ?? '',
+      discountType: presetType,
+      flatDiscount: presetType === 'flat' ? (presetValue ?? '') : '',
+      percentageDiscount: presetType === 'percentage' ? (presetValue ?? '') : '',
+      finalPrice: product.finalPrice ?? product.reducedPrice ?? product.price ?? '',
+      stock: product.stock ?? '',
+      descriptionText: Array.isArray(product.description) ? product.description.join('\n') : '',
+    });
+    setSelectedImages([]);
+    setIsProductFormOpen(true);
+  };
+
+  const handleProductField = (e) => {
+    const { name, value } = e.target;
+    if (name === 'discountType') {
+      setProductForm((prev) => ({
+        ...prev,
+        discountType: value,
+        flatDiscount: '',
+        percentageDiscount: '',
+        finalPrice: prev.price ? Number(prev.price).toFixed(2) : '',
+      }));
+      return;
+    }
+    setProductForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  useEffect(() => {
+    const p = Number(productForm.price);
+    if (!Number.isFinite(p) || p <= 0) {
+      setProductForm((prev) => ({ ...prev, finalPrice: '' }));
+      return;
+    }
+
+    let final = p;
+    if (productForm.discountType === 'flat') {
+      const d = Number(productForm.flatDiscount);
+      if (Number.isFinite(d) && d >= 0) {
+        final = p - d;
+      }
+    } else {
+      const d = Number(productForm.percentageDiscount);
+      if (Number.isFinite(d) && d >= 0) {
+        final = p - (p * d) / 100;
+      }
+    }
+
+    final = Math.max(0, final);
+    setProductForm((prev) => ({ ...prev, finalPrice: final.toFixed(2) }));
+  }, [productForm.price, productForm.flatDiscount, productForm.percentageDiscount, productForm.discountType]);
+
+  const handleImageFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const mapped = files.map((file) => ({
+      id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 7)}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+
+    const next = [...selectedImages, ...mapped];
+    if (next.length > 3) {
+      toast.error('You can select up to 3 images');
+      setSelectedImages(next.slice(0, 3));
+      return;
+    }
+    setSelectedImages(next);
+  };
+
+  const removeSelectedImage = (id) => {
+    setSelectedImages((prev) => {
+      const target = prev.find((img) => img.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((img) => img.id !== id);
+    });
+    if (cropTargetId === id) setCropTargetId(null);
+  };
+
+  const currentCropImage = selectedImages.find((img) => img.id === cropTargetId);
+
+  const saveCrop = async () => {
+    if (!currentCropImage || !croppedPixels) return;
     try {
-      // Fetch shop details
-      const shopResponse = await fetch(`http://localhost:5001/api/shops`);
-      const shopData = await shopResponse.json();
-      const currentShop = shopData.shops.find(s => s._id === shopId);
-      setShop(currentShop);
-
-      // Fetch products for this shop
-      const productsResponse = await fetch(`http://localhost:5001/api/products/shop/${shopId}`);
-      const productsData = await productsResponse.json();
-      setProducts(productsData.products);
-
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error('Failed to load shop data');
-      setLoading(false);
+      const blob = await getCroppedBlob(currentCropImage.previewUrl, croppedPixels);
+      const croppedFile = new File([blob], currentCropImage.file.name, { type: 'image/jpeg' });
+      const newPreview = URL.createObjectURL(croppedFile);
+      setSelectedImages((prev) =>
+        prev.map((img) =>
+          img.id === cropTargetId
+            ? { ...img, file: croppedFile, previewUrl: newPreview }
+            : img,
+        ),
+      );
+      URL.revokeObjectURL(currentCropImage.previewUrl);
+      setCropTargetId(null);
+      setZoom(1);
+      setCrop({ x: 0, y: 0 });
+      toast.success('Image cropped');
+    } catch {
+      toast.error('Failed to crop image');
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewProduct(prev => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleAddProduct = async (e) => {
+  const handleSaveProduct = async (e) => {
     e.preventDefault();
+
+    const description = productForm.descriptionText
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!productForm.name.trim() || !productForm.category || !productForm.price || description.length === 0) {
+      toast.error('Please fill required product fields');
+      return;
+    }
+    const p = Number(productForm.price);
+    if (!Number.isFinite(p) || p <= 0) {
+      toast.error('Price must be greater than 0');
+      return;
+    }
+    if (productForm.discountType === 'flat') {
+      const d = Number(productForm.flatDiscount || 0);
+      if (!Number.isFinite(d) || d < 0) {
+        toast.error('Flat discount must be a valid non-negative number');
+        return;
+      }
+      if (d > p) {
+        toast.error('Flat discount cannot exceed price');
+        return;
+      }
+    } else {
+      const d = Number(productForm.percentageDiscount || 0);
+      if (!Number.isFinite(d) || d < 0 || d > 100) {
+        toast.error('Percentage discount must be between 0 and 100');
+        return;
+      }
+    }
+
+    const coords = shop?.location?.coordinates;
+    const lon = Array.isArray(coords) ? Number(coords[0]) : null;
+    const lat = Array.isArray(coords) ? Number(coords[1]) : null;
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+      toast.error('Shop location is missing or invalid');
+      return;
+    }
+
+    setSavingProduct(true);
     try {
-      const response = await fetch('http://localhost:5001/api/products', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...newProduct,
-          shop: shopId,
-          price: parseFloat(newProduct.price),
-          stock: parseInt(newProduct.stock) || 0,
-        }),
+      const formData = new FormData();
+      formData.append('name', productForm.name.trim());
+      formData.append('category', productForm.category);
+      formData.append('price', String(p));
+      const discountValue =
+        productForm.discountType === 'flat'
+          ? Number(productForm.flatDiscount || 0)
+          : Number(productForm.percentageDiscount || 0);
+      formData.append('discountType', productForm.discountType);
+      formData.append('discountValue', String(discountValue));
+      formData.append('finalPrice', String(Number(productForm.finalPrice || p)));
+      // Backward compatibility fields:
+      formData.append(
+        'reducedPrice',
+        productForm.discountType === 'flat'
+          ? String(Math.max(0, p - discountValue))
+          : String(Math.max(0, p - (p * discountValue) / 100)),
+      );
+      formData.append(
+        'discountPercentage',
+        productForm.discountType === 'percentage' ? String(discountValue) : '',
+      );
+      formData.append('stock', String(Number(productForm.stock) || 0));
+      formData.append('shop', shopId);
+      formData.append('longitude', String(lon));
+      formData.append('latitude', String(lat));
+      description.forEach((point) => formData.append('description', point));
+
+      selectedImages.forEach((img) => {
+        formData.append('images', img.file);
       });
 
-      if (response.ok) {
-        toast.success('Product added successfully!');
-        setNewProduct({
-          name: '',
-          description: '',
-          price: '',
-          category: '',
-          stock: '',
-          unit: 'pieces',
+      if (editingProduct?._id) {
+        await api.put(`/products/${editingProduct._id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
-        setShowAddProduct(false);
-        // Refresh products
-        fetchShopAndProducts();
+        toast.success('Product updated');
       } else {
-        const error = await response.json();
-        toast.error(error.message || 'Failed to add product');
+        await api.post('/products', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        toast.success('Product created');
       }
-    } catch (error) {
-      toast.error('Network error');
+      setIsProductFormOpen(false);
+      resetProductForm();
+      fetchShopAndProducts();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to save product';
+      toast.error(msg);
+    } finally {
+      setSavingProduct(false);
+    }
+  };
+
+  const handleDeleteProduct = async (productId) => {
+    const ok = window.confirm('Delete this product?');
+    if (!ok) return;
+    try {
+      await api.delete(`/products/${productId}`);
+      toast.success('Product deleted');
+      fetchShopAndProducts();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to delete product';
+      toast.error(msg);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
+      <div className="mx-auto max-w-7xl px-4 py-14">
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-600">
+          Loading shop details...
+        </div>
       </div>
     );
   }
 
   if (!shop) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-xl text-red-600">Shop not found</div>
+      <div className="mx-auto max-w-7xl px-4 py-14">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-10 text-center text-red-900">
+          {error || 'Shop not found'}
+        </div>
       </div>
     );
   }
 
+  const reviewCount = Number(shop.totalReviews || 0);
+  const rating = Number(shop.rating || 0).toFixed(1);
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-6xl mx-auto p-6">
-        {/* Shop Header */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">{shop.name}</h1>
-              <p className="text-gray-600 mt-2">{shop.address}</p>
-              <p className="text-gray-500 mt-1">{shop.phone}</p>
+    <div className="mx-auto max-w-7xl px-4 py-8">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-500">{shop.category}</p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">{shop.shopName}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
+              <span>⭐ {rating} ({reviewCount} reviews)</span>
+              <span>{shop.address}</span>
+              <span>{shop.phone}</span>
             </div>
-            <button
-              onClick={() => navigate('/')}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
+            <p className="mt-2 text-sm text-slate-600">Hours: {shop.openingHours}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${shop.isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}`}
             >
-              Back to Home
+              {shop.isOpen ? 'Open' : 'Closed'}
+            </span>
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard')}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Back
             </button>
           </div>
-          <p className="text-gray-700">{shop.description}</p>
+        </div>
+        {shop.description && <p className="mt-5 text-slate-700">{shop.description}</p>}
+      </section>
+
+      <section className="mt-8">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-2xl font-semibold text-slate-900">Products</h2>
+          {isOwner && (
+            <button
+              type="button"
+              onClick={openAddProduct}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            >
+              Add Product
+            </button>
+          )}
         </div>
 
-        {/* Add Product Button */}
-        <div className="mb-6">
-          <button
-            onClick={() => setShowAddProduct(!showAddProduct)}
-            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
-          >
-            {showAddProduct ? 'Cancel' : '+ Add New Product'}
-          </button>
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-900">
+            {error}
+          </div>
+        )}
+
+        {products.length === 0 ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+            <p className="text-lg font-medium text-slate-800">No products yet</p>
+            <p className="mt-1 text-slate-600">Add products to start selling from this shop.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {products.map((product) => {
+              const image = Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null;
+              const previewDescription = Array.isArray(product.description) && product.description.length > 0 ? product.description[0] : '';
+              const average = Number(product.ratings?.average || 0).toFixed(1);
+              const count = Number(product.ratings?.count || 0);
+              const basePrice = Number(product.price || 0);
+              const finalPrice = Number((product.finalPrice ?? product.reducedPrice ?? product.price) || 0);
+              const offLabel =
+                product.discountType === 'flat'
+                  ? `৳${Number(product.discountValue || 0).toFixed(0)} off`
+                  : product.discountType === 'percentage'
+                    ? `${Number(product.discountValue || 0).toFixed(0)}% off`
+                    : '';
+
+              return (
+                <article key={product._id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedProduct(product);
+                      setActiveImageIdx(0);
+                    }}
+                    className="block w-full text-left"
+                  >
+                    <div className="h-32 w-full bg-slate-100">
+                      {image ? (
+                        <img src={image?.startsWith('/uploads/') ? `http://localhost:5001${image}` : image} alt={product.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-sm text-slate-500">No image</div>
+                      )}
+                    </div>
+                    <div className="p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-sm font-semibold text-slate-900 line-clamp-1">{product.name}</h3>
+                        {product.totalPurchases > 50 && (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                            Popular
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500 line-clamp-1">{product.category}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <p className="text-sm font-semibold text-slate-900">৳{finalPrice.toFixed(2)}</p>
+                        {finalPrice < basePrice && (
+                          <p className="text-xs text-slate-400 line-through">৳{basePrice.toFixed(2)}</p>
+                        )}
+                        {offLabel && (
+                          <p className="text-[11px] font-semibold text-emerald-700">{offLabel}</p>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-slate-600">⭐ {average} ({count})</p>
+                      {previewDescription && (
+                        <p className="mt-1.5 line-clamp-2 text-xs text-slate-600">{previewDescription}</p>
+                      )}
+                      {Number(product.stock) === 0 && (
+                        <p className="mt-2 inline-block rounded bg-red-100 px-2 py-1 text-[11px] font-semibold text-red-700">
+                          Out of Stock
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                  {isOwner && (
+                    <div className="flex gap-2 border-t border-slate-200 p-2.5">
+                      <button
+                        type="button"
+                        onClick={() => openEditProduct(product)}
+                        className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteProduct(product._id)}
+                        className="flex-1 rounded-lg border border-red-300 px-2 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {selectedProduct && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-2xl font-semibold text-slate-900">{selectedProduct.name}</h3>
+              <button type="button" onClick={() => setSelectedProduct(null)} className="rounded px-2 py-1 text-slate-600 hover:bg-slate-100">✕</button>
+            </div>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <div>
+                <div className="h-56 overflow-hidden rounded-xl bg-slate-100">
+                  {Array.isArray(selectedProduct.images) && selectedProduct.images[activeImageIdx] ? (
+                    <img
+                      src={selectedProduct.images[activeImageIdx]?.startsWith('/uploads/')
+                        ? `http://localhost:5001${selectedProduct.images[activeImageIdx]}`
+                        : selectedProduct.images[activeImageIdx]}
+                      alt={selectedProduct.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm text-slate-500">No image</div>
+                  )}
+                </div>
+                {Array.isArray(selectedProduct.images) && selectedProduct.images.length > 1 && (
+                  <div className="mt-3 flex gap-2 overflow-x-auto">
+                    {selectedProduct.images.map((img, idx) => (
+                      <button
+                        key={`${img}-${idx}`}
+                        type="button"
+                        onClick={() => setActiveImageIdx(idx)}
+                        className={`h-14 w-20 shrink-0 overflow-hidden rounded border ${idx === activeImageIdx ? 'border-slate-900' : 'border-slate-300'}`}
+                      >
+                        <img src={img?.startsWith('/uploads/') ? `http://localhost:5001${img}` : img} alt={`${selectedProduct.name} ${idx + 1}`} className="h-full w-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">{selectedProduct.category}</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <p className="text-xl font-semibold text-slate-900">
+                    ৳{Number((selectedProduct.finalPrice ?? selectedProduct.reducedPrice ?? selectedProduct.price) || 0).toFixed(2)}
+                  </p>
+                  {Number((selectedProduct.finalPrice ?? selectedProduct.reducedPrice ?? selectedProduct.price) || 0) < Number(selectedProduct.price || 0) && (
+                    <p className="text-sm text-slate-400 line-through">৳{Number(selectedProduct.price || 0).toFixed(2)}</p>
+                  )}
+                </div>
+                <p className="mt-2 text-sm text-slate-600">Stock: {selectedProduct.stock ?? 0}</p>
+                <p className="mt-2 text-sm text-slate-600">
+                  ⭐ {Number(selectedProduct.ratings?.average || 0).toFixed(1)} ({Number(selectedProduct.ratings?.count || 0)})
+                </p>
+
+                <div className="mt-4">
+                  <h4 className="font-semibold text-slate-900">Description</h4>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
+                    {(Array.isArray(selectedProduct.description) ? selectedProduct.description : []).map((point, idx) => (
+                      <li key={`${point}-${idx}`}>{point}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-4">
+                  <h4 className="font-semibold text-slate-900">Reviews</h4>
+                  {Array.isArray(selectedProduct.reviews) && selectedProduct.reviews.length > 0 ? (
+                    <ul className="mt-2 space-y-2 text-sm">
+                      {selectedProduct.reviews.map((review, idx) => (
+                        <li key={`${review.user}-${idx}`} className="rounded-lg bg-slate-50 p-2">
+                          <p className="font-medium text-slate-800">{review.user} - ⭐ {review.rating}</p>
+                          <p className="text-slate-600">{review.comment}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-500">No reviews yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+      )}
 
-        {/* Add Product Form */}
-        {showAddProduct && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-bold mb-4">Add New Product</h2>
-            <form onSubmit={handleAddProduct} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">Product Name</label>
+      {isProductFormOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/45 p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-slate-900">{editingProduct ? 'Edit Product' : 'Add Product'}</h3>
+              <button type="button" onClick={() => setIsProductFormOpen(false)} className="rounded px-2 py-1 text-slate-600 hover:bg-slate-100">✕</button>
+            </div>
+            <form onSubmit={handleSaveProduct} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <input name="name" value={productForm.name} onChange={handleProductField} placeholder="Product name" className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
+              <select name="category" value={productForm.category} onChange={handleProductField} className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900">
+                {PRODUCT_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+              
+            <input name="price" type="number" step="0.01" value={productForm.price} onChange={handleProductField} placeholder="Price" className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
+            <input name="stock" type="number" value={productForm.stock} onChange={handleProductField} placeholder="Stock" className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
+              <div className="sm:col-span-2 rounded-lg border border-slate-300 p-3">
+                <p className="text-sm font-medium text-slate-700">Discount Type</p>
+                <div className="mt-2 flex items-center gap-4 text-sm">
+                  <label className="inline-flex items-center gap-2">
+                    <input type="radio" name="discountType" value="flat" checked={productForm.discountType === 'flat'} onChange={handleProductField} />
+                    Flat Discount
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input type="radio" name="discountType" value="percentage" checked={productForm.discountType === 'percentage'} onChange={handleProductField} />
+                    Percentage Discount
+                  </label>
+                </div>
+              </div>
+              <input
+                name="flatDiscount"
+                type="number"
+                step="0.01"
+                min="0"
+                value={productForm.flatDiscount}
+                onChange={handleProductField}
+                disabled={productForm.discountType !== 'flat'}
+                placeholder="Discount Price"
+                className={`rounded-lg border px-3 py-2.5 text-sm outline-none ${productForm.discountType !== 'flat' ? 'border-slate-200 bg-slate-100 text-slate-400' : 'border-slate-300 focus:border-slate-900'}`}
+              />
+              <input
+                name="percentageDiscount"
+                type="number"
+                min="0"
+                max="100"
+                value={productForm.percentageDiscount}
+                onChange={handleProductField}
+                disabled={productForm.discountType !== 'percentage'}
+                placeholder="Discount Percentage"
+                className={`rounded-lg border px-3 py-2.5 text-sm outline-none ${productForm.discountType !== 'percentage' ? 'border-slate-200 bg-slate-100 text-slate-400' : 'border-slate-300 focus:border-slate-900'}`}
+              />
+              <input
+                name="finalPrice"
+                type="number"
+                value={productForm.finalPrice}
+                readOnly
+                placeholder="Final Price (auto-calculated)"
+                className="sm:col-span-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-800 outline-none"
+              />
+              
+              <textarea name="descriptionText" rows={4} value={productForm.descriptionText} onChange={handleProductField} placeholder="Description points (one per line)" className="sm:col-span-2 rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
+              <div className="sm:col-span-2">
+                <label htmlFor="product-images" className="mb-1 block text-sm font-medium text-slate-700">
+                  Product images (0 to 3)
+                </label>
                 <input
-                  type="text"
-                  name="name"
-                  value={newProduct.name}
-                  onChange={handleInputChange}
-                  required
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  id="product-images"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageFileChange}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900"
                 />
+                <p className="mt-1 text-xs text-slate-500">
+                  {selectedImages.length > 0
+                    ? `${selectedImages.length} image(s) selected`
+                    : editingProduct?.images?.length
+                      ? `No new image selected. Using existing ${editingProduct.images.length} image(s).`
+                      : 'No image selected.'}
+                </p>
+                {selectedImages.length > 0 && (
+                  <div className="mt-3 grid grid-cols-3 gap-3">
+                    {selectedImages.map((img) => (
+                      <div key={img.id} className="relative overflow-hidden rounded-lg border border-slate-200">
+                        <img src={img.previewUrl} alt={img.file.name} className="h-24 w-full object-cover" />
+                        <div className="absolute inset-x-0 bottom-0 flex gap-1 bg-black/55 p-1">
+                          <button type="button" onClick={() => setCropTargetId(img.id)} className="flex-1 rounded bg-white/90 px-2 py-1 text-[11px] font-medium text-slate-900">
+                            Crop
+                          </button>
+                          <button type="button" onClick={() => removeSelectedImage(img.id)} className="rounded bg-red-500 px-2 py-1 text-[11px] font-medium text-white">
+                            ❌
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">Description</label>
-                <textarea
-                  name="description"
-                  value={newProduct.description}
-                  onChange={handleInputChange}
-                  required
-                  rows="3"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Price</label>
-                <input
-                  type="number"
-                  name="price"
-                  value={newProduct.price}
-                  onChange={handleInputChange}
-                  required
-                  min="0"
-                  step="0.01"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Category</label>
-                <input
-                  type="text"
-                  name="category"
-                  value={newProduct.category}
-                  onChange={handleInputChange}
-                  required
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Stock Quantity</label>
-                <input
-                  type="number"
-                  name="stock"
-                  value={newProduct.stock}
-                  onChange={handleInputChange}
-                  min="0"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Unit</label>
-                <select
-                  name="unit"
-                  value={newProduct.unit}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="pieces">Pieces</option>
-                  <option value="kg">Kilograms</option>
-                  <option value="lbs">Pounds</option>
-                  <option value="liters">Liters</option>
-                  <option value="ml">Milliliters</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <button
-                  type="submit"
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-                >
-                  Add Product
+              <div className="sm:col-span-2 mt-2 flex justify-end gap-2">
+                <button type="button" onClick={() => setIsProductFormOpen(false)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                <button type="submit" disabled={savingProduct} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60">
+                  {savingProduct ? 'Saving...' : editingProduct ? 'Save Changes' : 'Create Product'}
                 </button>
               </div>
             </form>
           </div>
-        )}
-
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <p className="text-gray-500 text-lg">No products added yet.</p>
-              <p className="text-gray-400 mt-2">Click "Add New Product" to get started!</p>
-            </div>
-          ) : (
-            products.map((product) => (
-              <div key={product._id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                {product.image && (
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-48 object-cover"
-                  />
-                )}
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold text-gray-900">{product.name}</h3>
-                  <p className="text-gray-600 text-sm mt-1">{product.description}</p>
-                  <div className="mt-3 flex justify-between items-center">
-                    <span className="text-2xl font-bold text-green-600">
-                      ৳{product.price}
-                      {product.unit !== 'pieces' && `/${product.unit}`}
-                    </span>
-                    <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                      {product.category}
-                    </span>
-                  </div>
-                  <div className="mt-2 text-sm text-gray-500">
-                    Stock: {product.stock} {product.unit}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
         </div>
-      </div>
-      <Toaster />
+      )}
+
+      {currentCropImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="font-semibold text-slate-900">Crop Image</h4>
+              <button type="button" onClick={() => setCropTargetId(null)} className="rounded px-2 py-1 text-slate-600 hover:bg-slate-100">✕</button>
+            </div>
+            <div className="relative h-80 w-full overflow-hidden rounded-lg bg-slate-900">
+              <Cropper
+                image={currentCropImage.previewUrl}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={(_area, areaPixels) => setCroppedPixels(areaPixels)}
+              />
+            </div>
+            <div className="mt-3">
+              <label className="text-sm text-slate-700">Zoom</label>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.1}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full"
+              />
+            </div>
+            <div className="mt-3 flex justify-end gap-2">
+              <button type="button" onClick={() => setCropTargetId(null)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+              <button type="button" onClick={saveCrop} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Apply Crop</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-export default ShopDetails;

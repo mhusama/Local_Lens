@@ -11,6 +11,7 @@ import WishlistPage from './pages/WishlistPage.jsx';
 import MyAccount from './pages/MyAccount.jsx';
 import Navbar from './components/Navbar.jsx';
 import CreateAccount from './pages/CreateAccount.jsx';
+import CreateShop from './pages/CreateShop.jsx';
 
 function AppLayout() {
   return (
@@ -33,6 +34,26 @@ function MyAccountRoute() {
   return loggedIn ? <MyAccount /> : <SignIn />;
 }
 
+function DashboardRoute() {
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem('user') || 'null');
+  } catch {
+    user = null;
+  }
+  return user ? <Dashboard /> : <Navigate to="/signin" replace />;
+}
+
+function CreateShopRoute() {
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem('user') || 'null');
+  } catch {
+    user = null;
+  }
+  return user ? <CreateShop /> : <Navigate to="/signin" replace />;
+}
+
 function App() {
   return (
     <Router>
@@ -41,10 +62,12 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/create-account" element={<CreateAccount />} />
           <Route path="/sign-in" element={<SignIn />} />
+          <Route path="/signin" element={<SignIn />} />
           <Route path="/search" element={<SearchedItem />} />
           <Route path="/my-account" element={<MyAccountRoute />} />
           <Route path="/create-user" element={<CreateAccount />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<DashboardRoute />} />
+          <Route path="/create-shop" element={<CreateShopRoute />} />
           <Route path="/shop/:shopId" element={<ShopDetails />} />
           <Route path="/category/:categoryName" element={<CategoryPage />} />
           <Route path="/compare" element={<ComparePage />} />

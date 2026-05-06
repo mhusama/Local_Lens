@@ -2,7 +2,9 @@ import Shop from "../models/Shop.js";
 
 export const getShops = async (req, res) => {
     try {
-        const shops = await Shop.find().populate('user_id', 'name email');
+        const { user_id } = req.query;
+        const filter = user_id ? { user_id } : {};
+        const shops = await Shop.find(filter).populate('user_id', 'name email');
         res.status(200).json({ shops });
     } catch (error) {
         console.error(error);
@@ -12,10 +14,37 @@ export const getShops = async (req, res) => {
 
 export const createShop = async (req, res) => {
     try {
-        const { shopName, description, category, phone, user_id, longitude, latitude, address, openingHours, rating, totalReviews, followers, isOpen } = req.body;
+        const {
+            shopName,
+            description,
+            category,
+            phone,
+            user_id,
+            longitude,
+            latitude,
+            location,
+            address,
+            openingHours,
+            rating,
+            totalReviews,
+            followers,
+            isOpen
+        } = req.body;
 
-        if (!shopName || !description || !category || !phone || !user_id || longitude === undefined || latitude === undefined || !address || !openingHours) {
+        if (!shopName || !description || !category || !phone || !user_id || !address || !openingHours) {
             return res.status(400).json({ message: "shopName, description, category, phone, user_id, location coordinates, address, and openingHours are required" });
+        }
+
+        let lon = longitude !== undefined ? parseFloat(longitude) : null;
+        let lat = latitude !== undefined ? parseFloat(latitude) : null;
+
+        if ((!Number.isFinite(lon) || !Number.isFinite(lat)) && Array.isArray(location?.coordinates)) {
+            lon = parseFloat(location.coordinates[0]);
+            lat = parseFloat(location.coordinates[1]);
+        }
+
+        if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+            return res.status(400).json({ message: "Valid longitude and latitude are required" });
         }
 
         const newShop = new Shop({
@@ -26,7 +55,7 @@ export const createShop = async (req, res) => {
             phone,
             location: {
                 type: 'Point',
-                coordinates: [parseFloat(longitude), parseFloat(latitude)],
+                coordinates: [lon, lat],
             },
             address,
             openingHours,
@@ -42,6 +71,20 @@ export const createShop = async (req, res) => {
         await newShop.populate('user_id', 'name email');
 
         res.status(201).json({ message: "Shop created successfully", shop: newShop });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const getShopById = async (req, res) => {
+    try {
+        const { shopId } = req.params;
+        const shop = await Shop.findById(shopId).populate('user_id', 'name email');
+        if (!shop) {
+            return res.status(404).json({ message: "Shop not found" });
+        }
+        res.status(200).json({ shop });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });

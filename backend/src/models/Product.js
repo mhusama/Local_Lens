@@ -14,6 +14,32 @@ const productSchema = new mongoose.Schema({
         required: true,
         min: 0,
     },
+    reducedPrice: {
+        type: Number,
+        min: 0,
+        default: null,
+    },
+    discountPercentage: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: null,
+    },
+    discountType: {
+        type: String,
+        enum: ['flat', 'percentage'],
+        default: null,
+    },
+    discountValue: {
+        type: Number,
+        min: 0,
+        default: null,
+    },
+    finalPrice: {
+        type: Number,
+        min: 0,
+        default: null,
+    },
     category: {
         type: String,
         required: true,

@@ -9,6 +9,7 @@ import adminRoutes from "./routers/adminRoutes.js";
 import {connectDB} from "./config/db.js";
 import dotenv from "dotenv";
 import cors from "cors";
+import path from "path";
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ connectDB();
 
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static(path.resolve("uploads")));
 
 app.use("/api/notes", notesRoutes);
 app.use("/api/users", usersRoutes);

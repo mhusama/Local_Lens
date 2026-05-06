@@ -40,7 +40,7 @@ export default function Navbar() {
 
   const primaryNavItems = [
     { label: 'Home', onClick: () => navigate('/') },
-    { label: 'Shop', onClick: () => navigate('/category/grocery') },
+    { label: 'My Shops', onClick: () => goProtected('/dashboard') },
     { label: 'Blog', onClick: () => navigate('/') },
     { label: 'Contact Us', onClick: () => navigate('/') },
   ];

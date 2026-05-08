@@ -12,6 +12,7 @@ function getStoredUser() {
 export default function Navbar() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
+  const [searchType, setSearchType] = useState('product');
 
   const user = getStoredUser();
   const token = localStorage.getItem('token');
@@ -35,7 +36,7 @@ export default function Navbar() {
     e.preventDefault();
     const q = query.trim();
     if (!q) return;
-    navigate(`/search?q=${encodeURIComponent(q)}`);
+    navigate(`/search?q=${encodeURIComponent(q)}&type=${encodeURIComponent(searchType)}`);
   };
 
   const primaryNavItems = [
@@ -61,11 +62,20 @@ export default function Navbar() {
         </button>
 
         <form onSubmit={handleSearch} className="order-3 flex w-full items-center gap-2 md:order-none md:w-auto md:flex-1">
+          <select
+            value={searchType}
+            onChange={(e) => setSearchType(e.target.value)}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
+            aria-label="Search type"
+          >
+            <option value="product">Product</option>
+            <option value="shop">Shop</option>
+          </select>
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search products..."
+            placeholder={searchType === 'shop' ? 'Search shops...' : 'Search products...'}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
           />
           <button

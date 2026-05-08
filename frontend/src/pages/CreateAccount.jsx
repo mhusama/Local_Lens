@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import toast from 'react-hot-toast';
@@ -45,6 +45,11 @@ export default function CreateAccount() {
   const [mapCenter, setMapCenter] = useState(DEFAULT_CENTER);
   const [locationQuery, setLocationQuery] = useState('');
   const [searchingLocation, setSearchingLocation] = useState(false);
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [locationNotFound, setLocationNotFound] = useState(false);
+  const [activeSuggestionIdx, setActiveSuggestionIdx] = useState(-1);
+  const locationSearchRef = useRef(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -94,11 +99,12 @@ export default function CreateAccount() {
   };
 
   const handleLocationSearch = async (e) => {
-    e.preventDefault();
+    if (e?.preventDefault) e.preventDefault();
     const query = locationQuery.trim();
     if (!query) return;
 
     setSearchingLocation(true);
+    setLocationNotFound(false);
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`,
@@ -116,6 +122,8 @@ export default function CreateAccount() {
       const next = [lat, lon];
       setMapCenter(next);
       setLocation(next);
+      setLocationQuery(match.display_name || query);
+      setShowSuggestions(false);
       toast.success('Location found and selected');
     } catch {
       toast.error('Unable to search location right now');
@@ -123,6 +131,64 @@ export default function CreateAccount() {
       setSearchingLocation(false);
     }
   };
+
+  const applySuggestion = (item) => {
+    const lat = Number(item.lat);
+    const lon = Number(item.lon);
+    const next = [lat, lon];
+    setMapCenter(next);
+    setLocation(next);
+    setLocationQuery(item.display_name || '');
+    setShowSuggestions(false);
+    setActiveSuggestionIdx(-1);
+    setLocationNotFound(false);
+  };
+
+  useEffect(() => {
+    const query = locationQuery.trim();
+    if (!query) {
+      setLocationSuggestions([]);
+      setShowSuggestions(false);
+      setLocationNotFound(false);
+      setActiveSuggestionIdx(-1);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearchingLocation(true);
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&limit=6&q=${encodeURIComponent(query)}`,
+        );
+        const data = await response.json();
+        const next = Array.isArray(data) ? data : [];
+        setLocationSuggestions(next);
+        setShowSuggestions(true);
+        setLocationNotFound(next.length === 0);
+        setActiveSuggestionIdx(next.length > 0 ? 0 : -1);
+      } catch {
+        setLocationSuggestions([]);
+        setShowSuggestions(true);
+        setLocationNotFound(true);
+        setActiveSuggestionIdx(-1);
+      } finally {
+        setSearchingLocation(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [locationQuery]);
+
+  useEffect(() => {
+    const onClickOutside = (event) => {
+      if (!locationSearchRef.current) return;
+      if (!locationSearchRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-10">
@@ -166,16 +232,49 @@ export default function CreateAccount() {
             <p className="text-sm text-slate-600">
               Click on the map to set your location. Required format: <span className="font-medium">{'{ location: Point, coordinates: [lon, lat] }'}</span>
             </p>
-            <div>
+            <div ref={locationSearchRef}>
               <label htmlFor="location-search" className="mb-1 block text-sm font-medium text-slate-700">
                 Search location on map
               </label>
-              <div className="flex gap-2">
+              <div className="relative">
+                <div className="flex gap-2">
                 <input
                   id="location-search"
                   type="text"
                   value={locationQuery}
-                  onChange={(e) => setLocationQuery(e.target.value)}
+                  onChange={(e) => {
+                    setLocationQuery(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => {
+                    if (locationSuggestions.length > 0 || locationNotFound) setShowSuggestions(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (showSuggestions && activeSuggestionIdx >= 0 && locationSuggestions[activeSuggestionIdx]) {
+                        applySuggestion(locationSuggestions[activeSuggestionIdx]);
+                      } else {
+                        handleLocationSearch();
+                      }
+                      return;
+                    }
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      if (!locationSuggestions.length) return;
+                      setShowSuggestions(true);
+                      setActiveSuggestionIdx((prev) => (prev + 1) % locationSuggestions.length);
+                    }
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      if (!locationSuggestions.length) return;
+                      setShowSuggestions(true);
+                      setActiveSuggestionIdx((prev) => (prev <= 0 ? locationSuggestions.length - 1 : prev - 1));
+                    }
+                    if (e.key === 'Escape') {
+                      setShowSuggestions(false);
+                    }
+                  }}
                   placeholder="Search by address, area, or city"
                   className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none focus:border-slate-900"
                 />
@@ -187,6 +286,29 @@ export default function CreateAccount() {
                 >
                   {searchingLocation ? 'Searching...' : 'Search'}
                 </button>
+              </div>
+                {showSuggestions && (
+                  <div className="absolute z-[1000] mt-1 max-h-64 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                    {locationSuggestions.map((item, idx) => (
+                      <button
+                        key={`${item.place_id}-${idx}`}
+                        type="button"
+                        onClick={() => applySuggestion(item)}
+                        className={`block w-full px-3 py-2 text-left text-sm ${
+                          idx === activeSuggestionIdx ? 'bg-slate-100 text-slate-900' : 'text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        {item.display_name}
+                      </button>
+                    ))}
+                    {!searchingLocation && locationNotFound && (
+                      <div className="px-3 py-2 text-sm text-slate-500">No locations found.</div>
+                    )}
+                    {searchingLocation && (
+                      <div className="px-3 py-2 text-sm text-slate-500">Searching locations...</div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             <div className="overflow-hidden rounded-xl border border-slate-200">

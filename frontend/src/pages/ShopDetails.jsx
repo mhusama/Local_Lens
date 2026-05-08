@@ -18,6 +18,16 @@ const INITIAL_PRODUCT_FORM = {
   descriptionText: '',
 };
 
+const DEFAULT_BANNER =
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="820" height="360"><rect width="100%" height="100%" fill="%23e2e8f0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23475569" font-family="Arial" font-size="32">Shop Banner</text></svg>';
+const DEFAULT_AVATAR =
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="100%" height="100%" fill="%23cbd5e1"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23334155" font-family="Arial" font-size="22">Logo</text></svg>';
+
+const toAssetUrl = (value, fallback) => {
+  if (!value) return fallback;
+  return value.startsWith('/uploads/') ? `http://localhost:5001${value}` : value;
+};
+
 export default function ShopDetails() {
   const { shopId } = useParams();
   const navigate = useNavigate();
@@ -38,6 +48,14 @@ export default function ShopDetails() {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedPixels, setCroppedPixels] = useState(null);
+  const [deletingShop, setDeletingShop] = useState(false);
+  const [following, setFollowing] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [messageText, setMessageText] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [productSort, setProductSort] = useState('default');
 
   const user = useMemo(() => {
     try {
@@ -59,7 +77,12 @@ export default function ShopDetails() {
     try {
       const [shopRes, productsRes] = await Promise.all([
         api.get(`/shops/${shopId}`),
-        api.get('/products', { params: { shop_id: shopId } }),
+        api.get('/products', {
+          params: {
+            shop_id: shopId,
+            ...(productSort === 'default' ? {} : { sort: productSort }),
+          },
+        }),
       ]);
 
       setShop(shopRes.data?.shop || null);
@@ -76,7 +99,7 @@ export default function ShopDetails() {
 
   useEffect(() => {
     fetchShopAndProducts();
-  }, [shopId]);
+  }, [shopId, productSort]);
 
   const resetProductForm = () => {
     selectedImages.forEach((img) => URL.revokeObjectURL(img.previewUrl));
@@ -322,6 +345,105 @@ export default function ShopDetails() {
     }
   };
 
+  const handleDeleteShop = async () => {
+    const ok = window.confirm('Delete this shop? This action cannot be undone.');
+    if (!ok) return;
+    setDeletingShop(true);
+    try {
+      await api.delete(`/shops/${shopId}`);
+      toast.success('Shop deleted');
+      navigate('/dashboard');
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to delete shop';
+      toast.error(msg);
+    } finally {
+      setDeletingShop(false);
+    }
+  };
+
+  const handleFollowShop = async () => {
+    const guestKey = `shop-followed-${shopId}`;
+    const currentUserId = user?.id || user?._id || null;
+
+    if (!currentUserId) {
+      if (localStorage.getItem(guestKey) === '1') {
+        toast('You already followed this shop');
+        return;
+      }
+    }
+
+    setFollowing(true);
+    try {
+      const { data } = await api.post(`/shops/${shopId}/follow`, {
+        user_id: currentUserId || undefined,
+      });
+      setShop((prev) => (prev ? { ...prev, followers: Number(data?.followers ?? prev.followers ?? 0) } : prev));
+      if (!currentUserId) localStorage.setItem(guestKey, '1');
+      toast.success(data?.alreadyFollowing ? 'Already following' : 'Shop followed');
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to follow shop';
+      toast.error(msg);
+    } finally {
+      setFollowing(false);
+    }
+  };
+
+  const loadConversation = async () => {
+    const senderId = user?.id || user?._id;
+    const recipientId = shop?.user_id?._id || shop?.user_id;
+    if (!senderId || !recipientId) return;
+    setChatLoading(true);
+    try {
+      const { data } = await api.get('/chats', {
+        params: { userA: senderId, userB: recipientId },
+      });
+      setMessages(Array.isArray(data?.messages) ? data.messages : []);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to load chat';
+      toast.error(msg);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const openChat = async () => {
+    const senderId = user?.id || user?._id;
+    if (!senderId) {
+      toast.error('Please sign in to chat');
+      navigate('/signin');
+      return;
+    }
+    setChatOpen(true);
+    await loadConversation();
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    const senderId = user?.id || user?._id;
+    const recipientId = shop?.user_id?._id || shop?.user_id;
+    if (!senderId || !recipientId) {
+      toast.error('Unable to send message right now');
+      return;
+    }
+    if (!messageText.trim()) return;
+
+    setSendingMessage(true);
+    try {
+      await api.post('/chats', {
+        sender_id: senderId,
+        recipient_id: recipientId,
+        message: messageText.trim(),
+      });
+      setMessageText('');
+      await loadConversation();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to send message';
+      toast.error(msg);
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-14">
@@ -347,14 +469,20 @@ export default function ShopDetails() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="relative h-[500px] w-full bg-slate-100">
+          <img src={toAssetUrl(shop.bannerImage, DEFAULT_BANNER)} alt={`${shop.shopName} banner`} className="h-full w-full object-cover" />
+        </div>
+        <div className="relative p-6 md:p-8">
+          <div className="absolute -top-14 left-6 h-24 w-24 overflow-hidden rounded-full border-4 border-white bg-slate-100 shadow md:left-8 md:h-28 md:w-28">
+            <img src={toAssetUrl(shop.profilePicture, DEFAULT_AVATAR)} alt={`${shop.shopName} profile`} className="h-full w-full object-cover" />
+          </div>
+          <div className="mt-12 flex flex-col gap-4 md:mt-8 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-sm font-medium text-slate-500">{shop.category}</p>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">{shop.shopName}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
               <span>⭐ {rating} ({reviewCount} reviews)</span>
-              <span>{shop.address}</span>
               <span>{shop.phone}</span>
             </div>
             <p className="mt-2 text-sm text-slate-600">Hours: {shop.openingHours}</p>
@@ -365,6 +493,25 @@ export default function ShopDetails() {
             >
               {shop.isOpen ? 'Open' : 'Closed'}
             </span>
+            {!isOwner && (
+              <>
+                <button
+                  type="button"
+                  disabled={following}
+                  onClick={handleFollowShop}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                >
+                  {following ? 'Following...' : 'Follow'}
+                </button>
+                <button
+                  type="button"
+                  onClick={openChat}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Chat
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={() => navigate('/dashboard')}
@@ -372,25 +519,56 @@ export default function ShopDetails() {
             >
               Back
             </button>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard')}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Edit
+              </button>
+            )}
+            {isOwner && (
+              <button
+                type="button"
+                disabled={deletingShop}
+                onClick={handleDeleteShop}
+                className="rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+              >
+                Delete
+              </button>
+            )}
           </div>
         </div>
         {shop.description && <p className="mt-5 text-slate-700">{shop.description}</p>}
+        </div>
       </section>
 
       <section className="mt-8">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-2xl font-semibold text-slate-900">Products</h2>
-          {isOwner && (
-            <button
-              type="button"
-              onClick={openAddProduct}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          <div className="flex items-center gap-2">
+            <select
+              value={productSort}
+              onChange={(e) => setProductSort(e.target.value)}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-900"
             >
-              Add Product
-            </button>
-          )}
+              <option value="default">Newest</option>
+              <option value="lowest_price">Lowest Price</option>
+              <option value="highest_rating">Highest Rating</option>
+              <option value="best_discount">Best Discount</option>
+            </select>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={openAddProduct}
+                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+              >
+                Add Product
+              </button>
+            )}
+          </div>
         </div>
-
         {error && (
           <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-900">
             {error}
@@ -411,15 +589,24 @@ export default function ShopDetails() {
               const count = Number(product.ratings?.count || 0);
               const basePrice = Number(product.price || 0);
               const finalPrice = Number((product.finalPrice ?? product.reducedPrice ?? product.price) || 0);
+              const safeDiscountValue = Number.isFinite(Number(product.discountValue))
+                ? Number(product.discountValue)
+                : 0;
+              const safeDiscountPercentage = Number.isFinite(Number(product.discountPercentage))
+                ? Number(product.discountPercentage)
+                : 0;
               const offLabel =
                 product.discountType === 'flat'
-                  ? `৳${Number(product.discountValue || 0).toFixed(0)} off`
-                  : product.discountType === 'percentage'
-                    ? `${Number(product.discountValue || 0).toFixed(0)}% off`
+                  ? `৳${safeDiscountValue.toFixed(0)} off`
+                  : (product.discountType === 'percentage' || safeDiscountPercentage > 0)
+                    ? `${safeDiscountPercentage > 0 ? safeDiscountPercentage.toFixed(0) : safeDiscountValue.toFixed(0)}% off`
                     : '';
 
               return (
-                <article key={product._id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <article
+                  key={product._id}
+                  className="cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-transform duration-200 hover:scale-[1.06]"
+                >
                   <button
                     type="button"
                     onClick={() => {
@@ -716,6 +903,48 @@ export default function ShopDetails() {
               <button type="button" onClick={() => setCropTargetId(null)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
               <button type="button" onClick={saveCrop} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Apply Crop</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {chatOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h4 className="text-lg font-semibold text-slate-900">Chat with Shop Owner</h4>
+              <button type="button" onClick={() => setChatOpen(false)} className="rounded px-2 py-1 text-slate-600 hover:bg-slate-100">✕</button>
+            </div>
+            <div className="h-80 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
+              {chatLoading ? (
+                <p className="text-sm text-slate-500">Loading messages...</p>
+              ) : messages.length === 0 ? (
+                <p className="text-sm text-slate-500">No messages yet. Start the conversation.</p>
+              ) : (
+                <div className="space-y-2">
+                  {messages.map((msg) => {
+                    const mine = String(msg.sender_id) === String(user?.id || user?._id);
+                    return (
+                      <div key={msg._id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${mine ? 'bg-slate-900 text-white' : 'bg-white text-slate-800 border border-slate-200'}`}>
+                          {msg.message}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <form onSubmit={handleSendMessage} className="mt-3 flex gap-2">
+              <input
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                placeholder="Type a message..."
+                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900"
+              />
+              <button type="submit" disabled={sendingMessage} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60">
+                {sendingMessage ? 'Sending...' : 'Send'}
+              </button>
+            </form>
           </div>
         </div>
       )}

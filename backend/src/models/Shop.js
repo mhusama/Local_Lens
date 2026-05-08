@@ -33,9 +33,13 @@ const shopSchema = new mongoose.Schema({
             required: true,
         },
     },
-    address: {
+    profilePicture: {
         type: String,
-        required: true,
+        default: null,
+    },
+    bannerImage: {
+        type: String,
+        default: null,
     },
     openingHours: {
         type: String,
@@ -57,6 +61,10 @@ const shopSchema = new mongoose.Schema({
         default: 0,
         min: 0,
     },
+    followerIds: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+    }],
     isOpen: {
         type: Boolean,
         default: true,

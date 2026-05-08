@@ -23,7 +23,6 @@ export const createShop = async (req, res) => {
             longitude,
             latitude,
             location,
-            address,
             openingHours,
             rating,
             totalReviews,
@@ -31,8 +30,8 @@ export const createShop = async (req, res) => {
             isOpen
         } = req.body;
 
-        if (!shopName || !description || !category || !phone || !user_id || !address || !openingHours) {
-            return res.status(400).json({ message: "shopName, description, category, phone, user_id, location coordinates, address, and openingHours are required" });
+        if (!shopName || !description || !category || !phone || !user_id || !openingHours) {
+            return res.status(400).json({ message: "shopName, description, category, phone, user_id, location coordinates, and openingHours are required" });
         }
 
         let lon = longitude !== undefined ? parseFloat(longitude) : null;
@@ -47,6 +46,13 @@ export const createShop = async (req, res) => {
             return res.status(400).json({ message: "Valid longitude and latitude are required" });
         }
 
+        const uploadedProfilePicture = Array.isArray(req.files?.profilePicture) && req.files.profilePicture[0]
+            ? `/uploads/${req.files.profilePicture[0].filename}`
+            : null;
+        const uploadedBannerImage = Array.isArray(req.files?.bannerImage) && req.files.bannerImage[0]
+            ? `/uploads/${req.files.bannerImage[0].filename}`
+            : null;
+
         const newShop = new Shop({
             user_id,
             shopName,
@@ -57,7 +63,8 @@ export const createShop = async (req, res) => {
                 type: 'Point',
                 coordinates: [lon, lat],
             },
-            address,
+            profilePicture: uploadedProfilePicture,
+            bannerImage: uploadedBannerImage,
             openingHours,
             rating: rating || 0,
             totalReviews: totalReviews || 0,
@@ -99,5 +106,127 @@ export const getShopsByOwner = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const updateShop = async (req, res) => {
+    try {
+        const { shopId } = req.params;
+        const {
+            shopName,
+            description,
+            category,
+            phone,
+            openingHours,
+            longitude,
+            latitude,
+            location,
+            rating,
+            totalReviews,
+            followers,
+            isOpen,
+        } = req.body;
+
+        const shop = await Shop.findById(shopId);
+        if (!shop) {
+            return res.status(404).json({ message: "Shop not found" });
+        }
+
+        if (shopName !== undefined) shop.shopName = shopName;
+        if (description !== undefined) shop.description = description;
+        if (category !== undefined) shop.category = category;
+        if (phone !== undefined) shop.phone = phone;
+        if (openingHours !== undefined) shop.openingHours = openingHours;
+        if (rating !== undefined) shop.rating = Number(rating) || 0;
+        if (totalReviews !== undefined) shop.totalReviews = Number(totalReviews) || 0;
+        if (followers !== undefined) shop.followers = Number(followers) || 0;
+        if (isOpen !== undefined) {
+            shop.isOpen = String(isOpen) === "true" || isOpen === true;
+        }
+
+        let lon = longitude !== undefined ? parseFloat(longitude) : null;
+        let lat = latitude !== undefined ? parseFloat(latitude) : null;
+
+        if ((!Number.isFinite(lon) || !Number.isFinite(lat)) && Array.isArray(location?.coordinates)) {
+            lon = parseFloat(location.coordinates[0]);
+            lat = parseFloat(location.coordinates[1]);
+        }
+
+        if (Number.isFinite(lon) && Number.isFinite(lat)) {
+            shop.location = {
+                type: "Point",
+                coordinates: [lon, lat],
+            };
+        }
+
+        const uploadedProfilePicture = Array.isArray(req.files?.profilePicture) && req.files.profilePicture[0]
+            ? `/uploads/${req.files.profilePicture[0].filename}`
+            : null;
+        const uploadedBannerImage = Array.isArray(req.files?.bannerImage) && req.files.bannerImage[0]
+            ? `/uploads/${req.files.bannerImage[0].filename}`
+            : null;
+
+        if (uploadedProfilePicture) {
+            shop.profilePicture = uploadedProfilePicture;
+        }
+        if (uploadedBannerImage) {
+            shop.bannerImage = uploadedBannerImage;
+        }
+
+        await shop.save();
+        await shop.populate("user_id", "name email");
+
+        return res.status(200).json({ message: "Shop updated successfully", shop });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const deleteShop = async (req, res) => {
+    try {
+        const { shopId } = req.params;
+        const deleted = await Shop.findByIdAndDelete(shopId);
+        if (!deleted) {
+            return res.status(404).json({ message: "Shop not found" });
+        }
+        return res.status(200).json({ message: "Shop deleted successfully" });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const followShop = async (req, res) => {
+    try {
+        const { shopId } = req.params;
+        const { user_id } = req.body;
+
+        const shop = await Shop.findById(shopId);
+        if (!shop) {
+            return res.status(404).json({ message: "Shop not found" });
+        }
+
+        const ownerId = String(shop.user_id);
+        if (user_id && String(user_id) === ownerId) {
+            return res.status(400).json({ message: "Shop owner cannot follow their own shop" });
+        }
+
+        if (user_id) {
+            const alreadyFollowing = Array.isArray(shop.followerIds)
+                && shop.followerIds.some((id) => String(id) === String(user_id));
+            if (alreadyFollowing) {
+                return res.status(200).json({ message: "Already following", followers: shop.followers || 0, alreadyFollowing: true });
+            }
+            shop.followerIds = [...(shop.followerIds || []), user_id];
+        }
+
+        shop.followers = Number(shop.followers || 0) + 1;
+        await shop.save();
+
+        return res.status(200).json({ message: "Followed shop", followers: shop.followers, alreadyFollowing: false });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error" });
     }
 };

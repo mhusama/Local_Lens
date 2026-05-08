@@ -95,6 +95,7 @@ function MapBounds({ userLatLon, markerPositions }) {
 export default function SearchedItem() {
   const [searchParams] = useSearchParams();
   const q = searchParams.get('q')?.trim() ?? '';
+  const searchType = (searchParams.get('type') || 'product').toLowerCase() === 'shop' ? 'shop' : 'product';
 
   const [userLatLon, setUserLatLon] = useState(null);
   const [locationSource, setLocationSource] = useState('current');
@@ -102,6 +103,7 @@ export default function SearchedItem() {
   const [geoError, setGeoError] = useState(null);
 
   const [products, setProducts] = useState([]);
+  const [shops, setShops] = useState([]);
   const [fetchLoading, setFetchLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
@@ -163,23 +165,38 @@ export default function SearchedItem() {
   }, [locationSource, requestLocation]);
 
   useEffect(() => {
-    if (!q || !userLatLon) return;
+    if (!q) return;
+    if (searchType === 'product' && !userLatLon) return;
 
     let cancelled = false;
     const load = async () => {
       setFetchLoading(true);
       setFetchError(null);
       try {
-        const { data } = await api.get('/products', {
-          params: {
-            name: q,
-            lat: userLatLon.lat,
-            lon: userLatLon.lon,
-            radius: 2000,
-          },
-        });
-        if (!cancelled) {
-          setProducts(Array.isArray(data?.products) ? data.products : []);
+        if (searchType === 'shop') {
+          const { data } = await api.get('/shops');
+          if (!cancelled) {
+            const allShops = Array.isArray(data?.shops) ? data.shops : [];
+            const normalized = q.toLowerCase();
+            const filtered = allShops.filter((s) =>
+              String(s?.shopName || '').toLowerCase().includes(normalized),
+            );
+            setShops(filtered);
+            setProducts([]);
+          }
+        } else {
+          const { data } = await api.get('/products', {
+            params: {
+              name: q,
+              lat: userLatLon.lat,
+              lon: userLatLon.lon,
+              radius: 2000,
+            },
+          });
+          if (!cancelled) {
+            setProducts(Array.isArray(data?.products) ? data.products : []);
+            setShops([]);
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -190,6 +207,7 @@ export default function SearchedItem() {
             'Could not load products';
           setFetchError(msg);
           setProducts([]);
+          setShops([]);
         }
       } finally {
         if (!cancelled) setFetchLoading(false);
@@ -200,7 +218,7 @@ export default function SearchedItem() {
     return () => {
       cancelled = true;
     };
-  }, [q, userLatLon]);
+  }, [q, userLatLon, searchType]);
 
   const enriched = useMemo(() => {
     return products.map((p) => {
@@ -221,6 +239,19 @@ export default function SearchedItem() {
       return a._distanceM - b._distanceM;
     });
   }, [enriched]);
+
+  const shopCards = useMemo(() => {
+    return shops.map((s) => {
+      const coords = s?.location?.coordinates;
+      const lon = Array.isArray(coords) ? Number(coords[0]) : null;
+      const lat = Array.isArray(coords) ? Number(coords[1]) : null;
+      const dist =
+        Number.isFinite(lat) && Number.isFinite(lon) && userLatLon
+          ? distanceMeters(userLatLon.lat, userLatLon.lon, lat, lon)
+          : null;
+      return { ...s, _distanceM: dist };
+    });
+  }, [shops, userLatLon]);
 
   const markerPositions = useMemo(() => {
     return sorted.filter((p) => p._loc).map((p) => [p._loc.lat, p._loc.lon]);
@@ -256,7 +287,9 @@ export default function SearchedItem() {
             <Link to="/" className="text-sm text-slate-600 hover:text-slate-900">
               ← Home
             </Link>
-            <h1 className="text-xl font-semibold mt-1">Results for &ldquo;{q}&rdquo;</h1>
+            <h1 className="text-xl font-semibold mt-1">
+              {searchType === 'shop' ? 'Shop' : 'Product'} results for &ldquo;{q}&rdquo;
+            </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex overflow-hidden rounded-lg border border-slate-300">
@@ -311,19 +344,19 @@ export default function SearchedItem() {
           </div>
         )}
 
-        {userLatLon && fetchLoading && (
+        {searchType === 'product' && userLatLon && fetchLoading && (
           <div className="rounded-xl border border-slate-200 bg-white p-6 text-center text-slate-600">
             Loading nearby products…
           </div>
         )}
 
-        {userLatLon && fetchError && !fetchLoading && (
+        {((searchType === 'product' && userLatLon) || searchType === 'shop') && fetchError && !fetchLoading && (
           <div className="rounded-xl border border-red-200 bg-red-50 text-red-900 px-4 py-3" role="alert">
             {fetchError}
           </div>
         )}
 
-        {userLatLon && !geoLoading && (
+        {searchType === 'product' && userLatLon && !geoLoading && (
           <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
             <MapContainer
               center={[userLatLon.lat, userLatLon.lon]}
@@ -368,7 +401,7 @@ export default function SearchedItem() {
           </div>
         )}
 
-        {userLatLon && !fetchLoading && !fetchError && (
+        {searchType === 'product' && userLatLon && !fetchLoading && !fetchError && (
           <section>
             <h2 className="text-lg font-semibold text-slate-900 mb-3">
               Nearby products
@@ -396,6 +429,40 @@ export default function SearchedItem() {
                       </div>
                     </div>
                     <div className="mt-2 text-xs text-slate-500">{formatDistance(p._distanceM)} away</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
+        {searchType === 'shop' && !fetchLoading && !fetchError && (
+          <section>
+            <h2 className="text-lg font-semibold text-slate-900 mb-3">Shops</h2>
+            {shopCards.length === 0 ? (
+              <p className="text-slate-600 rounded-xl border border-slate-200 bg-white px-4 py-8 text-center">
+                No shops found for this search.
+              </p>
+            ) : (
+              <ul className="grid gap-3 sm:grid-cols-2">
+                {shopCards.map((shop) => (
+                  <li key={shop._id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-medium text-slate-900">{shop.shopName}</div>
+                        <div className="text-sm text-slate-600">{shop.category}</div>
+                        <div className="text-xs text-slate-500 mt-1">{shop.phone}</div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-xs text-slate-500">★ {formatRating(shop.rating)}</div>
+                        <div className="text-xs text-slate-500">{formatDistance(shop._distanceM)}</div>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <Link to={`/shop/${shop._id}`} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                        View Shop
+                      </Link>
+                    </div>
                   </li>
                 ))}
               </ul>

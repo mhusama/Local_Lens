@@ -1,7 +1,8 @@
 import Product from "../models/Product.js";
+import Shop from "../models/Shop.js";
 
 const mapProductForClient = (p) => {
-    const coords = p.location?.coordinates;
+    const coords = p.location?.coordinates || p.shop?.location?.coordinates;
     let lat;
     let lon;
     if (Array.isArray(coords) && coords.length >= 2) {
@@ -13,14 +14,71 @@ const mapProductForClient = (p) => {
         name: p.name,
         price: p.price,
         shopName: p.shop?.shopName ?? "Unknown",
+        shopId: p.shop?._id?.toString(),
         location: lat != null && lon != null ? { lat, lon } : null,
+        openingHours: p.openingHours || p.shop?.openingHours || null,
+        tags: Array.isArray(p.tags) ? p.tags : [],
         rating: p.ratings?.average ?? 0,
     };
 };
 
+const normalizeTag = (value) => String(value || "").trim().toLowerCase();
+
+const parseIncomingTags = (rawTags) => {
+    if (rawTags == null) return null;
+    if (Array.isArray(rawTags)) return rawTags;
+    if (typeof rawTags === "string") {
+        const trimmed = rawTags.trim();
+        if (!trimmed) return [];
+        try {
+            const parsed = JSON.parse(trimmed);
+            return Array.isArray(parsed) ? parsed : [trimmed];
+        } catch {
+            return trimmed.split(",");
+        }
+    }
+    return [];
+};
+
+const uniqueTags = (tags) => {
+    const seen = new Set();
+    const out = [];
+    for (const tag of tags) {
+        const normalized = normalizeTag(tag);
+        if (!normalized || seen.has(normalized)) continue;
+        seen.add(normalized);
+        out.push(normalized);
+    }
+    return out;
+};
+
+const buildResolvedTags = ({
+    title,
+    category,
+    providedTags,
+    existingTags = [],
+    existingTitle = "",
+    existingCategory = "",
+}) => {
+    const nextAuto = uniqueTags([title, category]);
+    const prevAuto = uniqueTags([existingTitle, existingCategory]);
+    let custom = [];
+    if (providedTags == null) {
+        const prevAutoSet = new Set(prevAuto);
+        custom = uniqueTags(existingTags.filter((tag) => !prevAutoSet.has(normalizeTag(tag))));
+    } else {
+        const nextAutoSet = new Set(nextAuto);
+        custom = uniqueTags(providedTags).filter((tag) => !nextAutoSet.has(tag)).slice(0, 3);
+    }
+    return uniqueTags([...nextAuto, ...custom]);
+};
+
+const productPopulateSelect = "shopName location openingHours profilePicture bannerImage user_id";
+
 export const getProducts = async (req, res) => {
     try {
         const { name, lat, lon, radius, shop_id, sort } = req.query;
+        const nameRegex = name ? { $regex: String(name), $options: "i" } : null;
 
         if (name != null && lat != null && lon != null && radius != null) {
             const userLat = parseFloat(lat);
@@ -32,17 +90,20 @@ export const getProducts = async (req, res) => {
             }
 
             const products = await Product.find({
-                name: { $regex: String(name), $options: "i" },
                 location: {
                     $nearSphere: {
-                        $geometry: {
-                            type: "Point",
-                            coordinates: [userLon, userLat],
-                        },
+                        $geometry: { type: "Point", coordinates: [userLon, userLat] },
                         $maxDistance: maxMeters,
                     },
                 },
-            }).populate("shop", "shopName location profilePicture bannerImage");
+                $or: [
+                    { name: nameRegex },
+                    { category: nameRegex },
+                    { tags: nameRegex },
+                ],
+            })
+                .populate("shop", productPopulateSelect)
+                .lean();
 
             const mapped = products.map(mapProductForClient);
             return res.status(200).json({ products: mapped });
@@ -57,11 +118,14 @@ export const getProducts = async (req, res) => {
             const sortQuery = sortMap[String(sort || "").toLowerCase()] || { createdAt: -1 };
             const products = await Product.find({ shop: shop_id })
                 .sort(sortQuery)
-                .populate("shop", "shopName location profilePicture bannerImage user_id");
+                .populate("shop", productPopulateSelect)
+                .lean();
             return res.status(200).json({ products });
         }
 
-        const products = await Product.find().populate("shop", "shopName location profilePicture bannerImage");
+        const products = await Product.find()
+            .populate("shop", productPopulateSelect)
+            .lean();
         res.status(200).json({ products });
     } catch (error) {
         console.error(error);
@@ -71,7 +135,7 @@ export const getProducts = async (req, res) => {
 
 export const createProduct = async (req, res) => {
     try {
-        const { name, description, price, discountType, discountValue, finalPrice, reducedPrice, discountPercentage, category, shop, images, stock, longitude, latitude } = req.body;
+        const { name, description, price, discountType, discountValue, finalPrice, reducedPrice, discountPercentage, category, shop, images, stock, tags, longitude, latitude, openingHours } = req.body;
 
         if (!name || !description || price === undefined || !category || !shop || longitude === undefined || latitude === undefined) {
             return res.status(400).json({ message: "Name, description, price, category, shop, and location coordinates are required" });
@@ -79,6 +143,7 @@ export const createProduct = async (req, res) => {
 
         // Ensure description is an array
         const descriptionArray = Array.isArray(description) ? description : [description];
+        const parsedIncomingTags = parseIncomingTags(tags);
 
         const uploadedImages = Array.isArray(req.files)
             ? req.files.map((f) => `/uploads/${f.filename}`)
@@ -95,6 +160,17 @@ export const createProduct = async (req, res) => {
                 ? Math.max(0, Math.min(100, (parsedDiscountValue / parsedPrice) * 100))
                 : null;
 
+        const shopDoc = await Shop.findById(shop).select("_id openingHours");
+        if (!shopDoc) {
+            return res.status(404).json({ message: "Shop not found" });
+        }
+
+        const resolvedTags = buildResolvedTags({
+            title: name,
+            category,
+            providedTags: parsedIncomingTags,
+        });
+
         const newProduct = new Product({
             name,
             description: descriptionArray,
@@ -108,6 +184,7 @@ export const createProduct = async (req, res) => {
             discountValue: Number.isFinite(parsedDiscountValue) ? parsedDiscountValue : null,
             finalPrice: Number.isFinite(parsedFinalPrice) ? parsedFinalPrice : null,
             category,
+            tags: resolvedTags,
             shop,
             images: uploadedImages.length > 0 ? uploadedImages : fallbackImages,
             stock: stock ? parseInt(stock) : 0,
@@ -115,12 +192,13 @@ export const createProduct = async (req, res) => {
                 type: 'Point',
                 coordinates: [parseFloat(longitude), parseFloat(latitude)],
             },
+            openingHours: String(openingHours || shopDoc.openingHours || "").trim(),
         });
 
         await newProduct.save();
 
         // Populate shop info in response
-        await newProduct.populate('shop', 'shopName location profilePicture bannerImage');
+        await newProduct.populate('shop', productPopulateSelect);
 
         res.status(201).json({ message: "Product created successfully", product: newProduct });
     } catch (error) {
@@ -132,11 +210,29 @@ export const createProduct = async (req, res) => {
 export const getProductsByShop = async (req, res) => {
     try {
         const { shopId } = req.params;
-        const products = await Product.find({ shop: shopId }).populate('shop', 'shopName location profilePicture bannerImage');
+        const products = await Product.find({ shop: shopId })
+            .populate('shop', productPopulateSelect)
+            .lean();
         res.status(200).json({ products });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const getProductById = async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const product = await Product.findById(productId)
+            .populate('shop', productPopulateSelect)
+            .lean();
+        if (!product) {
+            return res.status(404).json({ message: "Product not found" });
+        }
+        return res.status(200).json({ product });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error" });
     }
 };
 
@@ -146,11 +242,13 @@ export const searchProducts = async (req, res) => {
 
         let filter = {};
 
-        // Text search in name and description
+        // Text search in name/category/tags
         if (query) {
+            const regex = { $regex: String(query), $options: "i" };
             filter.$or = [
-                { name: { $regex: query, $options: 'i' } },
-                { description: { $elemMatch: { $regex: query, $options: 'i' } } }
+                { name: regex },
+                { category: regex },
+                { tags: regex },
             ];
         }
 
@@ -166,7 +264,9 @@ export const searchProducts = async (req, res) => {
             if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
         }
 
-        const products = await Product.find(filter).populate('shop', 'shopName location profilePicture bannerImage');
+        const products = await Product.find(filter)
+            .populate('shop', productPopulateSelect)
+            .lean();
         res.status(200).json({ products });
     } catch (error) {
         console.error(error);
@@ -177,10 +277,12 @@ export const searchProducts = async (req, res) => {
 export const updateProduct = async (req, res) => {
     try {
         const { productId } = req.params;
-        const { name, description, price, discountType, discountValue, finalPrice, reducedPrice, discountPercentage, category, images, stock, longitude, latitude, location } = req.body;
+        const { name, description, price, discountType, discountValue, finalPrice, reducedPrice, discountPercentage, category, images, stock, tags, longitude, latitude, location, openingHours } = req.body;
 
         const product = await Product.findById(productId);
         if (!product) return res.status(404).json({ message: "Product not found" });
+        const previousName = product.name;
+        const previousCategory = product.category;
 
         if (name !== undefined) product.name = name;
         if (description !== undefined) product.description = Array.isArray(description) ? description : [description];
@@ -210,6 +312,15 @@ export const updateProduct = async (req, res) => {
             );
         }
         if (category !== undefined) product.category = category;
+        const parsedIncomingTags = parseIncomingTags(tags);
+        product.tags = buildResolvedTags({
+            title: product.name,
+            category: product.category,
+            providedTags: parsedIncomingTags,
+            existingTags: product.tags || [],
+            existingTitle: previousName,
+            existingCategory: previousCategory,
+        });
         const uploadedImages = Array.isArray(req.files)
             ? req.files.map((f) => `/uploads/${f.filename}`)
             : [];
@@ -219,7 +330,9 @@ export const updateProduct = async (req, res) => {
             product.images = Array.isArray(images) ? images : [];
         }
         if (stock !== undefined) product.stock = parseInt(stock) || 0;
-
+        if (openingHours !== undefined) {
+            product.openingHours = String(openingHours || "").trim();
+        }
         let lon = longitude !== undefined ? parseFloat(longitude) : null;
         let lat = latitude !== undefined ? parseFloat(latitude) : null;
         if ((!Number.isFinite(lon) || !Number.isFinite(lat)) && Array.isArray(location?.coordinates)) {
@@ -231,7 +344,7 @@ export const updateProduct = async (req, res) => {
         }
 
         await product.save();
-        await product.populate('shop', 'shopName location profilePicture bannerImage');
+        await product.populate('shop', productPopulateSelect);
 
         res.status(200).json({ message: "Product updated successfully", product });
     } catch (error) {

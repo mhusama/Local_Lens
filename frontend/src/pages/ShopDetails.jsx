@@ -28,6 +28,19 @@ const toAssetUrl = (value, fallback) => {
   return value.startsWith('/uploads/') ? `http://localhost:5001${value}` : value;
 };
 
+const normalizeTag = (value) => String(value || '').trim().toLowerCase();
+const uniqueTags = (tags) => {
+  const seen = new Set();
+  const output = [];
+  tags.forEach((tag) => {
+    const normalized = normalizeTag(tag);
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    output.push(normalized);
+  });
+  return output;
+};
+
 export default function ShopDetails() {
   const { shopId } = useParams();
   const navigate = useNavigate();
@@ -36,9 +49,6 @@ export default function ShopDetails() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [savingProduct, setSavingProduct] = useState(false);
@@ -56,6 +66,9 @@ export default function ShopDetails() {
   const [messageText, setMessageText] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [productSort, setProductSort] = useState('default');
+  const [productCustomTags, setProductCustomTags] = useState([]);
+  const [productTagInput, setProductTagInput] = useState('');
+  const [productTagError, setProductTagError] = useState('');
 
   const user = useMemo(() => {
     try {
@@ -110,6 +123,9 @@ export default function ShopDetails() {
     setCrop({ x: 0, y: 0 });
     setZoom(1);
     setCroppedPixels(null);
+    setProductCustomTags([]);
+    setProductTagInput('');
+    setProductTagError('');
   };
 
   const openAddProduct = () => {
@@ -138,8 +154,39 @@ export default function ShopDetails() {
       stock: product.stock ?? '',
       descriptionText: Array.isArray(product.description) ? product.description.join('\n') : '',
     });
+    const auto = uniqueTags([product.name, product.category]);
+    const autoSet = new Set(auto);
+    const existingTags = Array.isArray(product.tags) ? product.tags : [];
+    setProductCustomTags(uniqueTags(existingTags).filter((tag) => !autoSet.has(tag)).slice(0, 3));
+    setProductTagInput('');
+    setProductTagError('');
     setSelectedImages([]);
     setIsProductFormOpen(true);
+  };
+
+  const productAutoTags = useMemo(
+    () => uniqueTags([productForm.name, productForm.category]),
+    [productForm.name, productForm.category],
+  );
+  const productAllTags = useMemo(
+    () => uniqueTags([...productAutoTags, ...productCustomTags]),
+    [productAutoTags, productCustomTags],
+  );
+
+  const addProductCustomTag = () => {
+    const nextTag = normalizeTag(productTagInput);
+    if (!nextTag) return;
+    if (productAutoTags.includes(nextTag) || productCustomTags.includes(nextTag)) {
+      setProductTagError('Duplicate tag is not allowed');
+      return;
+    }
+    if (productCustomTags.length >= 3) {
+      setProductTagError('You can add up to 3 custom tags');
+      return;
+    }
+    setProductCustomTags((prev) => [...prev, nextTag]);
+    setProductTagInput('');
+    setProductTagError('');
   };
 
   const handleProductField = (e) => {
@@ -304,6 +351,8 @@ export default function ShopDetails() {
       formData.append('shop', shopId);
       formData.append('longitude', String(lon));
       formData.append('latitude', String(lat));
+      formData.append('openingHours', String(shop?.openingHours || ''));
+      formData.append('tags', JSON.stringify(productAllTags));
       description.forEach((point) => formData.append('description', point));
 
       selectedImages.forEach((img) => {
@@ -610,8 +659,7 @@ export default function ShopDetails() {
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedProduct(product);
-                      setActiveImageIdx(0);
+                      navigate(`/product/${product._id}`);
                     }}
                     className="block w-full text-left"
                   >
@@ -677,88 +725,6 @@ export default function ShopDetails() {
         )}
       </section>
 
-      {selectedProduct && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-2xl font-semibold text-slate-900">{selectedProduct.name}</h3>
-              <button type="button" onClick={() => setSelectedProduct(null)} className="rounded px-2 py-1 text-slate-600 hover:bg-slate-100">✕</button>
-            </div>
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              <div>
-                <div className="h-56 overflow-hidden rounded-xl bg-slate-100">
-                  {Array.isArray(selectedProduct.images) && selectedProduct.images[activeImageIdx] ? (
-                    <img
-                      src={selectedProduct.images[activeImageIdx]?.startsWith('/uploads/')
-                        ? `http://localhost:5001${selectedProduct.images[activeImageIdx]}`
-                        : selectedProduct.images[activeImageIdx]}
-                      alt={selectedProduct.name}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-sm text-slate-500">No image</div>
-                  )}
-                </div>
-                {Array.isArray(selectedProduct.images) && selectedProduct.images.length > 1 && (
-                  <div className="mt-3 flex gap-2 overflow-x-auto">
-                    {selectedProduct.images.map((img, idx) => (
-                      <button
-                        key={`${img}-${idx}`}
-                        type="button"
-                        onClick={() => setActiveImageIdx(idx)}
-                        className={`h-14 w-20 shrink-0 overflow-hidden rounded border ${idx === activeImageIdx ? 'border-slate-900' : 'border-slate-300'}`}
-                      >
-                        <img src={img?.startsWith('/uploads/') ? `http://localhost:5001${img}` : img} alt={`${selectedProduct.name} ${idx + 1}`} className="h-full w-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">{selectedProduct.category}</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <p className="text-xl font-semibold text-slate-900">
-                    ৳{Number((selectedProduct.finalPrice ?? selectedProduct.reducedPrice ?? selectedProduct.price) || 0).toFixed(2)}
-                  </p>
-                  {Number((selectedProduct.finalPrice ?? selectedProduct.reducedPrice ?? selectedProduct.price) || 0) < Number(selectedProduct.price || 0) && (
-                    <p className="text-sm text-slate-400 line-through">৳{Number(selectedProduct.price || 0).toFixed(2)}</p>
-                  )}
-                </div>
-                <p className="mt-2 text-sm text-slate-600">Stock: {selectedProduct.stock ?? 0}</p>
-                <p className="mt-2 text-sm text-slate-600">
-                  ⭐ {Number(selectedProduct.ratings?.average || 0).toFixed(1)} ({Number(selectedProduct.ratings?.count || 0)})
-                </p>
-
-                <div className="mt-4">
-                  <h4 className="font-semibold text-slate-900">Description</h4>
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
-                    {(Array.isArray(selectedProduct.description) ? selectedProduct.description : []).map((point, idx) => (
-                      <li key={`${point}-${idx}`}>{point}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="mt-4">
-                  <h4 className="font-semibold text-slate-900">Reviews</h4>
-                  {Array.isArray(selectedProduct.reviews) && selectedProduct.reviews.length > 0 ? (
-                    <ul className="mt-2 space-y-2 text-sm">
-                      {selectedProduct.reviews.map((review, idx) => (
-                        <li key={`${review.user}-${idx}`} className="rounded-lg bg-slate-50 p-2">
-                          <p className="font-medium text-slate-800">{review.user} - ⭐ {review.rating}</p>
-                          <p className="text-slate-600">{review.comment}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-2 text-sm text-slate-500">No reviews yet.</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {isProductFormOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/45 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
@@ -773,6 +739,48 @@ export default function ShopDetails() {
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
+              <div className="sm:col-span-2 rounded-lg border border-slate-300 p-3">
+                <p className="text-sm font-medium text-slate-700">Search tags</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {productAutoTags.map((tag) => (
+                    <span key={`auto-${tag}`} className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700">
+                      {tag}
+                    </span>
+                  ))}
+                  {productCustomTags.map((tag) => (
+                    <button
+                      key={`custom-${tag}`}
+                      type="button"
+                      onClick={() => setProductCustomTags((prev) => prev.filter((t) => t !== tag))}
+                      className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700"
+                    >
+                      {tag} ×
+                    </button>
+                  ))}
+                  {productAllTags.length === 0 && (
+                    <span className="text-xs text-slate-500">Type name and category to generate tags.</span>
+                  )}
+                </div>
+                <div className="mt-2">
+                  <input
+                    value={productTagInput}
+                    onChange={(e) => {
+                      setProductTagInput(e.target.value);
+                      if (productTagError) setProductTagError('');
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addProductCustomTag();
+                      }
+                    }}
+                    placeholder="Add custom tag and press Enter"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">Up to 3 custom tags. Lowercase and duplicates are handled automatically.</p>
+                  {productTagError && <p className="mt-1 text-xs font-medium text-red-600">{productTagError}</p>}
+                </div>
+              </div>
               
             <input name="price" type="number" step="0.01" value={productForm.price} onChange={handleProductField} placeholder="Price" className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
             <input name="stock" type="number" value={productForm.stock} onChange={handleProductField} placeholder="Stock" className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />

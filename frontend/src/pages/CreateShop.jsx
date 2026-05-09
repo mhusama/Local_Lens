@@ -17,6 +17,19 @@ const INITIAL_FORM = {
   openingHours: '',
 };
 
+const normalizeTag = (value) => String(value || '').trim().toLowerCase();
+const uniqueTags = (tags) => {
+  const seen = new Set();
+  const output = [];
+  tags.forEach((tag) => {
+    const normalized = normalizeTag(tag);
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    output.push(normalized);
+  });
+  return output;
+};
+
 function LocationPicker({ position, setPosition }) {
   useMapEvents({
     click(event) {
@@ -56,6 +69,9 @@ export default function CreateShop() {
   const [bannerImageFile, setBannerImageFile] = useState(null);
   const [profilePreview, setProfilePreview] = useState('');
   const [bannerPreview, setBannerPreview] = useState('');
+  const [customTags, setCustomTags] = useState([]);
+  const [tagInput, setTagInput] = useState('');
+  const [tagError, setTagError] = useState('');
   const locationSearchRef = useRef(null);
 
   const user = useMemo(() => {
@@ -69,6 +85,25 @@ export default function CreateShop() {
   const onChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const autoTags = useMemo(() => uniqueTags([form.shopName, form.category]), [form.shopName, form.category]);
+  const allTags = useMemo(() => uniqueTags([...autoTags, ...customTags]), [autoTags, customTags]);
+
+  const addCustomTag = () => {
+    const nextTag = normalizeTag(tagInput);
+    if (!nextTag) return;
+    if (autoTags.includes(nextTag) || customTags.includes(nextTag)) {
+      setTagError('Duplicate tag is not allowed');
+      return;
+    }
+    if (customTags.length >= 3) {
+      setTagError('You can add up to 3 custom tags');
+      return;
+    }
+    setCustomTags((prev) => [...prev, nextTag]);
+    setTagInput('');
+    setTagError('');
   };
 
   const handleNext = (e) => {
@@ -194,6 +229,7 @@ export default function CreateShop() {
       formData.append('category', form.category);
       formData.append('phone', form.phone.trim());
       formData.append('openingHours', form.openingHours.trim());
+      formData.append('tags', JSON.stringify(allTags));
       formData.append('user_id', user.id);
       formData.append('longitude', String(lon));
       formData.append('latitude', String(lat));
@@ -232,6 +268,46 @@ export default function CreateShop() {
             <input name="phone" value={form.phone} onChange={onChange} placeholder="Phone" className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
             <input name="openingHours" value={form.openingHours} onChange={onChange} placeholder="Opening hours (e.g. 9AM - 9PM)" className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
             <textarea name="description" value={form.description} onChange={onChange} placeholder="Description" rows={4} className="sm:col-span-2 rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
+            <div className="sm:col-span-2 rounded-lg border border-slate-300 p-3">
+              <p className="text-sm font-medium text-slate-700">Search tags</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {autoTags.map((tag) => (
+                  <span key={`auto-${tag}`} className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700">
+                    {tag}
+                  </span>
+                ))}
+                {customTags.map((tag) => (
+                  <button
+                    key={`custom-${tag}`}
+                    type="button"
+                    onClick={() => setCustomTags((prev) => prev.filter((t) => t !== tag))}
+                    className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700"
+                  >
+                    {tag} ×
+                  </button>
+                ))}
+                {allTags.length === 0 && <span className="text-xs text-slate-500">Type shop name and category to generate tags.</span>}
+              </div>
+              <div className="mt-2">
+                <input
+                  value={tagInput}
+                  onChange={(e) => {
+                    setTagInput(e.target.value);
+                    if (tagError) setTagError('');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addCustomTag();
+                    }
+                  }}
+                  placeholder="Add custom tag and press Enter"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
+                />
+                <p className="mt-1 text-xs text-slate-500">Up to 3 custom tags. Auto tags are generated from shop name and category.</p>
+                {tagError && <p className="mt-1 text-xs font-medium text-red-600">{tagError}</p>}
+              </div>
+            </div>
             <div className="sm:col-span-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Profile picture (optional)</label>

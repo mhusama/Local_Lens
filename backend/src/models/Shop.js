@@ -18,6 +18,10 @@ const shopSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    tags: {
+        type: [String],
+        default: [],
+    },
     phone: {
         type: String,
         required: true,
@@ -77,6 +81,9 @@ const shopSchema = new mongoose.Schema({
 
 // Add index for geospatial queries
 shopSchema.index({ location: '2dsphere' });
+shopSchema.index({ shopName: 1 });
+shopSchema.index({ category: 1 });
+shopSchema.index({ tags: 1 });
 
 const Shop = mongoose.model("Shop", shopSchema, "shops");
 

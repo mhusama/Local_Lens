@@ -1,10 +1,70 @@
 import Shop from "../models/Shop.js";
 
+const normalizeTag = (value) => String(value || "").trim().toLowerCase();
+
+const parseIncomingTags = (rawTags) => {
+    if (rawTags == null) return null;
+    if (Array.isArray(rawTags)) return rawTags;
+    if (typeof rawTags === "string") {
+        const trimmed = rawTags.trim();
+        if (!trimmed) return [];
+        try {
+            const parsed = JSON.parse(trimmed);
+            return Array.isArray(parsed) ? parsed : [trimmed];
+        } catch {
+            return trimmed.split(",");
+        }
+    }
+    return [];
+};
+
+const uniqueTags = (tags) => {
+    const seen = new Set();
+    const out = [];
+    for (const tag of tags) {
+        const normalized = normalizeTag(tag);
+        if (!normalized || seen.has(normalized)) continue;
+        seen.add(normalized);
+        out.push(normalized);
+    }
+    return out;
+};
+
+const buildResolvedTags = ({
+    title,
+    category,
+    providedTags,
+    existingTags = [],
+    existingTitle = "",
+    existingCategory = "",
+}) => {
+    const nextAuto = uniqueTags([title, category]);
+    const prevAuto = uniqueTags([existingTitle, existingCategory]);
+    let custom = [];
+    if (providedTags == null) {
+        const prevAutoSet = new Set(prevAuto);
+        custom = uniqueTags(existingTags.filter((tag) => !prevAutoSet.has(normalizeTag(tag))));
+    } else {
+        const nextAutoSet = new Set(nextAuto);
+        custom = uniqueTags(providedTags).filter((tag) => !nextAutoSet.has(tag)).slice(0, 3);
+    }
+    return uniqueTags([...nextAuto, ...custom]);
+};
+
 export const getShops = async (req, res) => {
     try {
-        const { user_id } = req.query;
-        const filter = user_id ? { user_id } : {};
-        const shops = await Shop.find(filter).populate('user_id', 'name email');
+        const { user_id, q } = req.query;
+        const filter = {};
+        if (user_id) filter.user_id = user_id;
+        if (q) {
+            const queryRegex = { $regex: String(q), $options: "i" };
+            filter.$or = [
+                { shopName: queryRegex },
+                { category: queryRegex },
+                { tags: queryRegex },
+            ];
+        }
+        const shops = await Shop.find(filter).populate('user_id', 'name email').lean();
         res.status(200).json({ shops });
     } catch (error) {
         console.error(error);
@@ -24,6 +84,7 @@ export const createShop = async (req, res) => {
             latitude,
             location,
             openingHours,
+            tags,
             rating,
             totalReviews,
             followers,
@@ -52,12 +113,19 @@ export const createShop = async (req, res) => {
         const uploadedBannerImage = Array.isArray(req.files?.bannerImage) && req.files.bannerImage[0]
             ? `/uploads/${req.files.bannerImage[0].filename}`
             : null;
+        const parsedIncomingTags = parseIncomingTags(tags);
+        const resolvedTags = buildResolvedTags({
+            title: shopName,
+            category,
+            providedTags: parsedIncomingTags,
+        });
 
         const newShop = new Shop({
             user_id,
             shopName,
             description,
             category,
+            tags: resolvedTags,
             phone,
             location: {
                 type: 'Point',
@@ -125,16 +193,28 @@ export const updateShop = async (req, res) => {
             totalReviews,
             followers,
             isOpen,
+            tags,
         } = req.body;
 
         const shop = await Shop.findById(shopId);
         if (!shop) {
             return res.status(404).json({ message: "Shop not found" });
         }
+        const previousShopName = shop.shopName;
+        const previousCategory = shop.category;
 
         if (shopName !== undefined) shop.shopName = shopName;
         if (description !== undefined) shop.description = description;
         if (category !== undefined) shop.category = category;
+        const parsedIncomingTags = parseIncomingTags(tags);
+        shop.tags = buildResolvedTags({
+            title: shop.shopName,
+            category: shop.category,
+            providedTags: parsedIncomingTags,
+            existingTags: shop.tags || [],
+            existingTitle: previousShopName,
+            existingCategory: previousCategory,
+        });
         if (phone !== undefined) shop.phone = phone;
         if (openingHours !== undefined) shop.openingHours = openingHours;
         if (rating !== undefined) shop.rating = Number(rating) || 0;

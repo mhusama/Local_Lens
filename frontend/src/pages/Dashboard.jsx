@@ -3,6 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 
+const normalizeTag = (value) => String(value || '').trim().toLowerCase();
+const uniqueTags = (tags) => {
+  const seen = new Set();
+  const output = [];
+  tags.forEach((tag) => {
+    const normalized = normalizeTag(tag);
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    output.push(normalized);
+  });
+  return output;
+};
+
 const DEFAULT_BANNER =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360"><rect width="100%" height="100%" fill="%23e2e8f0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23475569" font-family="Arial" font-size="32">Shop Banner</text></svg>';
 const DEFAULT_AVATAR =
@@ -40,6 +53,9 @@ export default function Dashboard() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [locationNotFound, setLocationNotFound] = useState(false);
   const [activeSuggestionIdx, setActiveSuggestionIdx] = useState(-1);
+  const [editCustomTags, setEditCustomTags] = useState([]);
+  const [editTagInput, setEditTagInput] = useState('');
+  const [editTagError, setEditTagError] = useState('');
   const locationSearchRef = useRef(null);
 
   const user = useMemo(() => {
@@ -91,6 +107,37 @@ export default function Dashboard() {
     setShowSuggestions(false);
     setLocationNotFound(false);
     setActiveSuggestionIdx(-1);
+    const auto = uniqueTags([shop.shopName, shop.category]);
+    const autoSet = new Set(auto);
+    const existingTags = Array.isArray(shop.tags) ? shop.tags : [];
+    setEditCustomTags(uniqueTags(existingTags).filter((tag) => !autoSet.has(tag)).slice(0, 3));
+    setEditTagInput('');
+    setEditTagError('');
+  };
+
+  const editAutoTags = useMemo(
+    () => uniqueTags([editForm.shopName, editForm.category]),
+    [editForm.shopName, editForm.category],
+  );
+  const editAllTags = useMemo(
+    () => uniqueTags([...editAutoTags, ...editCustomTags]),
+    [editAutoTags, editCustomTags],
+  );
+
+  const addEditCustomTag = () => {
+    const nextTag = normalizeTag(editTagInput);
+    if (!nextTag) return;
+    if (editAutoTags.includes(nextTag) || editCustomTags.includes(nextTag)) {
+      setEditTagError('Duplicate tag is not allowed');
+      return;
+    }
+    if (editCustomTags.length >= 3) {
+      setEditTagError('You can add up to 3 custom tags');
+      return;
+    }
+    setEditCustomTags((prev) => [...prev, nextTag]);
+    setEditTagInput('');
+    setEditTagError('');
   };
 
   const applySuggestion = (item) => {
@@ -143,6 +190,7 @@ export default function Dashboard() {
       formData.append('category', editForm.category.trim());
       formData.append('phone', editForm.phone.trim());
       formData.append('openingHours', editForm.openingHours.trim());
+      formData.append('tags', JSON.stringify(editAllTags));
       formData.append('longitude', String(lon));
       formData.append('latitude', String(lat));
       formData.append('isOpen', String(editForm.isOpen));
@@ -396,6 +444,43 @@ export default function Dashboard() {
               <input type="number" step="any" value={editForm.longitude} onChange={(e) => setEditForm((prev) => ({ ...prev, longitude: e.target.value }))} placeholder="Longitude" className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
               <input type="number" step="any" value={editForm.latitude} onChange={(e) => setEditForm((prev) => ({ ...prev, latitude: e.target.value }))} placeholder="Latitude" className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
               <textarea value={editForm.description} onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))} rows={3} placeholder="Description" className="sm:col-span-2 rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
+              <div className="sm:col-span-2 rounded-lg border border-slate-300 p-3">
+                <p className="text-sm font-medium text-slate-700">Search tags</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {editAutoTags.map((tag) => (
+                    <span key={`auto-${tag}`} className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700">
+                      {tag}
+                    </span>
+                  ))}
+                  {editCustomTags.map((tag) => (
+                    <button
+                      key={`custom-${tag}`}
+                      type="button"
+                      onClick={() => setEditCustomTags((prev) => prev.filter((t) => t !== tag))}
+                      className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700"
+                    >
+                      {tag} ×
+                    </button>
+                  ))}
+                </div>
+                <input
+                  value={editTagInput}
+                  onChange={(e) => {
+                    setEditTagInput(e.target.value);
+                    if (editTagError) setEditTagError('');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addEditCustomTag();
+                    }
+                  }}
+                  placeholder="Add custom tag and press Enter"
+                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
+                />
+                <p className="mt-1 text-xs text-slate-500">Up to 3 custom tags. Auto tags come from shop name and category.</p>
+                {editTagError && <p className="mt-1 text-xs font-medium text-red-600">{editTagError}</p>}
+              </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Profile picture (optional)</label>
                 <input type="file" accept="image/*" onChange={(e) => {

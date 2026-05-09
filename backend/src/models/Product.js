@@ -44,6 +44,10 @@ const productSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    tags: {
+        type: [String],
+        default: [],
+    },
     shop: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Shop',
@@ -103,14 +107,21 @@ const productSchema = new mongoose.Schema({
             required: true,
         },
     },
+    openingHours: {
+        type: String,
+        default: "",
+    },
     createdAt: {
         type: Date,
         default: Date.now,
     },
 });
 
-// Add index for geospatial queries
 productSchema.index({ location: '2dsphere' });
+productSchema.index({ name: 1 });
+productSchema.index({ category: 1 });
+productSchema.index({ tags: 1 });
+productSchema.index({ shop: 1, createdAt: -1 });
 
 const Product = mongoose.model("Product", productSchema, "products");
 

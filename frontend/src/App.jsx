@@ -12,6 +12,7 @@ import MyAccount from './pages/MyAccount.jsx';
 import Navbar from './components/Navbar.jsx';
 import CreateAccount from './pages/CreateAccount.jsx';
 import CreateShop from './pages/CreateShop.jsx';
+import ProductDetails from './pages/ProductDetails.jsx';
 
 function AppLayout() {
   return (
@@ -69,6 +70,7 @@ function App() {
           <Route path="/dashboard" element={<DashboardRoute />} />
           <Route path="/create-shop" element={<CreateShopRoute />} />
           <Route path="/shop/:shopId" element={<ShopDetails />} />
+          <Route path="/product/:productId" element={<ProductDetails />} />
           <Route path="/category/:categoryName" element={<CategoryPage />} />
           <Route path="/compare" element={<ComparePage />} />
           <Route path="/cart" element={<CartPage />} />

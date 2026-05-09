@@ -96,6 +96,7 @@ export default function SearchedItem() {
   const [searchParams] = useSearchParams();
   const q = searchParams.get('q')?.trim() ?? '';
   const searchType = (searchParams.get('type') || 'product').toLowerCase() === 'shop' ? 'shop' : 'product';
+  const [productSearchScope, setProductSearchScope] = useState('2km');
 
   const [userLatLon, setUserLatLon] = useState(null);
   const [locationSource, setLocationSource] = useState('current');
@@ -166,7 +167,7 @@ export default function SearchedItem() {
 
   useEffect(() => {
     if (!q) return;
-    if (searchType === 'product' && !userLatLon) return;
+    if (searchType === 'product' && productSearchScope !== 'all' && !userLatLon) return;
 
     let cancelled = false;
     const load = async () => {
@@ -174,25 +175,31 @@ export default function SearchedItem() {
       setFetchError(null);
       try {
         if (searchType === 'shop') {
-          const { data } = await api.get('/shops');
+          const { data } = await api.get('/shops', { params: { q } });
           if (!cancelled) {
-            const allShops = Array.isArray(data?.shops) ? data.shops : [];
-            const normalized = q.toLowerCase();
-            const filtered = allShops.filter((s) =>
-              String(s?.shopName || '').toLowerCase().includes(normalized),
-            );
-            setShops(filtered);
+            setShops(Array.isArray(data?.shops) ? data.shops : []);
             setProducts([]);
           }
         } else {
-          const { data } = await api.get('/products', {
-            params: {
-              name: q,
-              lat: userLatLon.lat,
-              lon: userLatLon.lon,
-              radius: 2000,
-            },
-          });
+          const radiusMap = {
+            '2km': 2000,
+            '5km': 5000,
+          };
+          const selectedRadius = radiusMap[productSearchScope];
+          const { data } = selectedRadius
+            ? await api.get('/products', {
+                params: {
+                  name: q,
+                  lat: userLatLon.lat,
+                  lon: userLatLon.lon,
+                  radius: selectedRadius,
+                },
+              })
+            : await api.get('/products/search', {
+                params: {
+                  query: q,
+                },
+              });
           if (!cancelled) {
             setProducts(Array.isArray(data?.products) ? data.products : []);
             setShops([]);
@@ -218,18 +225,18 @@ export default function SearchedItem() {
     return () => {
       cancelled = true;
     };
-  }, [q, userLatLon, searchType]);
+  }, [q, userLatLon, searchType, productSearchScope]);
 
   const enriched = useMemo(() => {
     return products.map((p) => {
       const loc = toLatLon(p.location);
       const dist =
-        loc && userLatLon
+        productSearchScope !== 'all' && loc && userLatLon
           ? distanceMeters(userLatLon.lat, userLatLon.lon, loc.lat, loc.lon)
           : null;
       return { ...p, _loc: loc, _distanceM: dist };
     });
-  }, [products, userLatLon]);
+  }, [products, userLatLon, productSearchScope]);
 
   const sorted = useMemo(() => {
     return [...enriched].sort((a, b) => {
@@ -292,6 +299,17 @@ export default function SearchedItem() {
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {searchType === 'product' && (
+              <select
+                value={productSearchScope}
+                onChange={(e) => setProductSearchScope(e.target.value)}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-slate-900"
+              >
+                <option value="2km">Within 2 km</option>
+                <option value="5km">Within 5 km</option>
+                <option value="all">Ignore location</option>
+              </select>
+            )}
             <div className="inline-flex overflow-hidden rounded-lg border border-slate-300">
               <button
                 type="button"
@@ -344,19 +362,19 @@ export default function SearchedItem() {
           </div>
         )}
 
-        {searchType === 'product' && userLatLon && fetchLoading && (
+        {searchType === 'product' && ((productSearchScope === 'all') || userLatLon) && fetchLoading && (
           <div className="rounded-xl border border-slate-200 bg-white p-6 text-center text-slate-600">
-            Loading nearby products…
+            {productSearchScope === 'all' ? 'Loading products…' : 'Loading nearby products…'}
           </div>
         )}
 
-        {((searchType === 'product' && userLatLon) || searchType === 'shop') && fetchError && !fetchLoading && (
+        {((searchType === 'product' && ((productSearchScope === 'all') || userLatLon)) || searchType === 'shop') && fetchError && !fetchLoading && (
           <div className="rounded-xl border border-red-200 bg-red-50 text-red-900 px-4 py-3" role="alert">
             {fetchError}
           </div>
         )}
 
-        {searchType === 'product' && userLatLon && !geoLoading && (
+        {searchType === 'product' && productSearchScope !== 'all' && userLatLon && !geoLoading && (
           <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
             <MapContainer
               center={[userLatLon.lat, userLatLon.lon]}
@@ -388,6 +406,7 @@ export default function SearchedItem() {
                       <div className="text-sm min-w-[140px]">
                         <div className="font-semibold text-slate-900">{p.name}</div>
                         <div className="text-slate-600">{p.shopName}</div>
+                        {p.openingHours && <div className="text-slate-500">Hours: {p.openingHours}</div>}
                         <div className="mt-1">
                           <span className="font-medium">${Number(p.price).toFixed(2)}</span>
                           <span className="text-slate-500 ml-2">★ {formatRating(p.rating)}</span>
@@ -401,36 +420,76 @@ export default function SearchedItem() {
           </div>
         )}
 
-        {searchType === 'product' && userLatLon && !fetchLoading && !fetchError && (
+        {searchType === 'product' && ((productSearchScope === 'all') || userLatLon) && !fetchLoading && !fetchError && (
           <section>
             <h2 className="text-lg font-semibold text-slate-900 mb-3">
-              Nearby products
-              <span className="font-normal text-slate-500 text-sm ml-2">sorted by distance</span>
+              {productSearchScope === 'all' ? 'Products' : 'Nearby products'}
+              {productSearchScope !== 'all' && (
+                <span className="font-normal text-slate-500 text-sm ml-2">sorted by distance</span>
+              )}
             </h2>
             {sorted.length === 0 ? (
               <p className="text-slate-600 rounded-xl border border-slate-200 bg-white px-4 py-8 text-center">
-                No products found within 2 km. Try another search or widen coverage later.
+                {productSearchScope === 'all'
+                  ? 'No products found for this search.'
+                  : `No products found within ${productSearchScope === '5km' ? '5' : '2'} km. Try another search or widen coverage later.`}
               </p>
             ) : (
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {sorted.map((p) => (
-                  <li
-                    key={p.id ?? `${p.name}-${p.shopName}-${p._distanceM}`}
-                    className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-                  >
-                    <div className="flex justify-between gap-3">
-                      <div>
-                        <div className="font-medium text-slate-900">{p.name}</div>
-                        <div className="text-sm text-slate-600">{p.shopName}</div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="font-semibold">${Number(p.price).toFixed(2)}</div>
-                        <div className="text-xs text-slate-500">★ {formatRating(p.rating)}</div>
-                      </div>
-                    </div>
-                    <div className="mt-2 text-xs text-slate-500">{formatDistance(p._distanceM)} away</div>
-                  </li>
-                ))}
+              <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                {sorted.map((p) => {
+                  const image = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null;
+                  const imageUrl = image?.startsWith('/uploads/') ? `http://localhost:5001${image}` : image;
+                  const basePrice = Number(p.price || 0);
+                  const finalPrice = Number((p.finalPrice ?? p.reducedPrice ?? p.price) || 0);
+                  const discountValue = Number.isFinite(Number(p.discountValue)) ? Number(p.discountValue) : 0;
+                  const discountPercentage = Number.isFinite(Number(p.discountPercentage)) ? Number(p.discountPercentage) : 0;
+                  const offLabel =
+                    p.discountType === 'flat'
+                      ? `৳${discountValue.toFixed(0)} off`
+                      : (p.discountType === 'percentage' || discountPercentage > 0)
+                        ? `${discountPercentage > 0 ? discountPercentage.toFixed(0) : discountValue.toFixed(0)}% off`
+                        : '';
+
+                  return (
+                    <li
+                      key={p.id ?? `${p.name}-${p.shopName}-${p._distanceM}`}
+                      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-transform duration-200 hover:scale-[1.06]"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const productId = p._id || p.id;
+                          if (productId) navigate(`/product/${productId}`);
+                        }}
+                        className="block w-full text-left"
+                      >
+                        <div className="h-40 w-full bg-slate-100">
+                          {imageUrl ? (
+                            <img src={imageUrl} alt={p.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-xs text-slate-500">No image</div>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <div className="line-clamp-1 text-sm font-semibold text-slate-900">{p.name}</div>
+                          <div className="mt-1 line-clamp-1 text-xs text-slate-600">{p.shopName}</div>
+                          {p.openingHours && <div className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">{p.openingHours}</div>}
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <p className="text-sm font-semibold text-slate-900">৳{finalPrice.toFixed(2)}</p>
+                            {finalPrice < basePrice && (
+                              <p className="text-xs text-slate-400 line-through">৳{basePrice.toFixed(2)}</p>
+                            )}
+                            {offLabel && <p className="text-[11px] font-semibold text-emerald-700">{offLabel}</p>}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-500">★ {formatRating(p.rating)}</div>
+                          {productSearchScope !== 'all' && (
+                            <div className="mt-1 text-xs text-slate-500">{formatDistance(p._distanceM)} away</div>
+                          )}
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>

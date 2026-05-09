@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import api from '../api/client';
@@ -94,9 +94,11 @@ function MapBounds({ userLatLon, markerPositions }) {
 
 export default function SearchedItem() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const q = searchParams.get('q')?.trim() ?? '';
   const searchType = (searchParams.get('type') || 'product').toLowerCase() === 'shop' ? 'shop' : 'product';
   const [productSearchScope, setProductSearchScope] = useState('2km');
+  const [productSort, setProductSort] = useState('closest');
 
   const [userLatLon, setUserLatLon] = useState(null);
   const [locationSource, setLocationSource] = useState('current');
@@ -240,12 +242,29 @@ export default function SearchedItem() {
 
   const sorted = useMemo(() => {
     return [...enriched].sort((a, b) => {
+      const aPrice = Number((a.finalPrice ?? a.reducedPrice ?? a.price) || 0);
+      const bPrice = Number((b.finalPrice ?? b.reducedPrice ?? b.price) || 0);
+      const aRating = Number(a.ratings?.average ?? a.rating ?? 0);
+      const bRating = Number(b.ratings?.average ?? b.rating ?? 0);
+      const aDiscount = Number(a.discountPercentage ?? 0);
+      const bDiscount = Number(b.discountPercentage ?? 0);
+
+      if (productSort === 'lowest_price') return aPrice - bPrice;
+      if (productSort === 'highest_rating') return bRating - aRating;
+      if (productSort === 'best_discount') return bDiscount - aDiscount;
+      if (productSort === 'default') {
+        const aCreated = new Date(a.createdAt || a.updatedAt || 0).getTime();
+        const bCreated = new Date(b.createdAt || b.updatedAt || 0).getTime();
+        return bCreated - aCreated;
+      }
+
+      // closest
       if (a._distanceM == null && b._distanceM == null) return 0;
       if (a._distanceM == null) return 1;
       if (b._distanceM == null) return -1;
       return a._distanceM - b._distanceM;
     });
-  }, [enriched]);
+  }, [enriched, productSort]);
 
   const shopCards = useMemo(() => {
     return shops.map((s) => {
@@ -300,15 +319,28 @@ export default function SearchedItem() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {searchType === 'product' && (
-              <select
-                value={productSearchScope}
-                onChange={(e) => setProductSearchScope(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-slate-900"
-              >
-                <option value="2km">Within 2 km</option>
-                <option value="5km">Within 5 km</option>
-                <option value="all">Ignore location</option>
-              </select>
+              <>
+                <select
+                  value={productSearchScope}
+                  onChange={(e) => setProductSearchScope(e.target.value)}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-slate-900"
+                >
+                  <option value="2km">Within 2 km</option>
+                  <option value="5km">Within 5 km</option>
+                  <option value="all">Ignore location</option>
+                </select>
+                <select
+                  value={productSort}
+                  onChange={(e) => setProductSort(e.target.value)}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-slate-900"
+                >
+                  <option value="closest">Closest Location</option>
+                  <option value="default">Newest</option>
+                  <option value="lowest_price">Lowest Price</option>
+                  <option value="highest_rating">Highest Rating</option>
+                  <option value="best_discount">Best Discount</option>
+                </select>
+              </>
             )}
             <div className="inline-flex overflow-hidden rounded-lg border border-slate-300">
               <button
@@ -425,7 +457,9 @@ export default function SearchedItem() {
             <h2 className="text-lg font-semibold text-slate-900 mb-3">
               {productSearchScope === 'all' ? 'Products' : 'Nearby products'}
               {productSearchScope !== 'all' && (
-                <span className="font-normal text-slate-500 text-sm ml-2">sorted by distance</span>
+                <span className="font-normal text-slate-500 text-sm ml-2">
+                  {productSort === 'closest' ? 'sorted by distance' : 'distance shown when available'}
+                </span>
               )}
             </h2>
             {sorted.length === 0 ? (

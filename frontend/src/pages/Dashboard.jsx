@@ -110,7 +110,7 @@ export default function Dashboard() {
     const auto = uniqueTags([shop.shopName, shop.category]);
     const autoSet = new Set(auto);
     const existingTags = Array.isArray(shop.tags) ? shop.tags : [];
-    setEditCustomTags(uniqueTags(existingTags).filter((tag) => !autoSet.has(tag)).slice(0, 3));
+    setEditCustomTags(uniqueTags(existingTags).filter((tag) => !autoSet.has(tag)).slice(0, 8));
     setEditTagInput('');
     setEditTagError('');
   };
@@ -131,8 +131,8 @@ export default function Dashboard() {
       setEditTagError('Duplicate tag is not allowed');
       return;
     }
-    if (editCustomTags.length >= 3) {
-      setEditTagError('You can add up to 3 custom tags');
+    if (editCustomTags.length >= 8) {
+      setEditTagError('You can add up to 8 custom tags');
       return;
     }
     setEditCustomTags((prev) => [...prev, nextTag]);
@@ -478,7 +478,7 @@ export default function Dashboard() {
                   placeholder="Add custom tag and press Enter"
                   className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
                 />
-                <p className="mt-1 text-xs text-slate-500">Up to 3 custom tags. Auto tags come from shop name and category.</p>
+                <p className="mt-1 text-xs text-slate-500">Up to 8 custom tags. Auto tags come from shop name and category.</p>
                 {editTagError && <p className="mt-1 text-xs font-medium text-red-600">{editTagError}</p>}
               </div>
               <div>

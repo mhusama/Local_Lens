@@ -97,8 +97,8 @@ export default function CreateShop() {
       setTagError('Duplicate tag is not allowed');
       return;
     }
-    if (customTags.length >= 3) {
-      setTagError('You can add up to 3 custom tags');
+    if (customTags.length >= 8) {
+      setTagError('You can add up to 8 custom tags');
       return;
     }
     setCustomTags((prev) => [...prev, nextTag]);
@@ -304,7 +304,7 @@ export default function CreateShop() {
                   placeholder="Add custom tag and press Enter"
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
                 />
-                <p className="mt-1 text-xs text-slate-500">Up to 3 custom tags. Auto tags are generated from shop name and category.</p>
+                <p className="mt-1 text-xs text-slate-500">Up to 8 custom tags. Auto tags are generated from shop name and category.</p>
                 {tagError && <p className="mt-1 text-xs font-medium text-red-600">{tagError}</p>}
               </div>
             </div>

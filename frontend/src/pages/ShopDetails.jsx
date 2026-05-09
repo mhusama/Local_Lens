@@ -157,7 +157,7 @@ export default function ShopDetails() {
     const auto = uniqueTags([product.name, product.category]);
     const autoSet = new Set(auto);
     const existingTags = Array.isArray(product.tags) ? product.tags : [];
-    setProductCustomTags(uniqueTags(existingTags).filter((tag) => !autoSet.has(tag)).slice(0, 3));
+    setProductCustomTags(uniqueTags(existingTags).filter((tag) => !autoSet.has(tag)).slice(0, 8));
     setProductTagInput('');
     setProductTagError('');
     setSelectedImages([]);
@@ -180,8 +180,8 @@ export default function ShopDetails() {
       setProductTagError('Duplicate tag is not allowed');
       return;
     }
-    if (productCustomTags.length >= 3) {
-      setProductTagError('You can add up to 3 custom tags');
+    if (productCustomTags.length >= 8) {
+      setProductTagError('You can add up to 8 custom tags');
       return;
     }
     setProductCustomTags((prev) => [...prev, nextTag]);
@@ -777,7 +777,7 @@ export default function ShopDetails() {
                     placeholder="Add custom tag and press Enter"
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
                   />
-                  <p className="mt-1 text-xs text-slate-500">Up to 3 custom tags. Lowercase and duplicates are handled automatically.</p>
+                  <p className="mt-1 text-xs text-slate-500">Up to 8 custom tags. Lowercase and duplicates are handled automatically.</p>
                   {productTagError && <p className="mt-1 text-xs font-medium text-red-600">{productTagError}</p>}
                 </div>
               </div>

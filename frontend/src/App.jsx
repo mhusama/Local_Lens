@@ -13,6 +13,7 @@ import Navbar from './components/Navbar.jsx';
 import CreateAccount from './pages/CreateAccount.jsx';
 import CreateShop from './pages/CreateShop.jsx';
 import ProductDetails from './pages/ProductDetails.jsx';
+import ContactUs from './pages/ContactUs.jsx';
 
 function AppLayout() {
   return (
@@ -75,6 +76,7 @@ function App() {
           <Route path="/compare" element={<ComparePage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/wishlist" element={<WishlistPage />} />
+          <Route path="/contact" element={<ContactUs />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

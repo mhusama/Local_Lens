@@ -43,7 +43,7 @@ export default function Navbar() {
     { label: 'Home', onClick: () => navigate('/') },
     { label: 'My Shops', onClick: () => goProtected('/dashboard') },
     { label: 'Blog', onClick: () => navigate('/') },
-    { label: 'Contact Us', onClick: () => navigate('/') },
+    { label: 'Contact Us', onClick: () => navigate('/contact') },
   ];
 
   return (

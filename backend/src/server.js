@@ -7,6 +7,9 @@ import shopsRoutes from "./routers/shopsRoutes.js";
 import productsRoutes from "./routers/productsRoutes.js";
 import adminRoutes from "./routers/adminRoutes.js";
 import chatsRoutes from "./routers/chatsRoutes.js";
+import wishlistRoutes from "./routers/wishlistRoutes.js";
+import cartRoutes from "./routers/cartRoutes.js";
+import contactRoutes from "./routers/contactRoutes.js";
 import {connectDB} from "./config/db.js";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -31,6 +34,9 @@ app.use("/api/shops", shopsRoutes);
 app.use("/api/products", productsRoutes);
 app.use("/api/admins", adminRoutes);
 app.use("/api/chats", chatsRoutes);
+app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/contact", contactRoutes);
 
 app.listen(port, () => {
     console.log("Server is running on port " + port);

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import api from '../api/client';
+import { addCompareItem } from '../utils/compare.js';
 
 const toAssetUrl = (value) => {
   if (!value) return null;
@@ -14,6 +15,8 @@ export default function ProductDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [activeMessage, setActiveMessage] = useState('');
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -47,6 +50,67 @@ export default function ProductDetails() {
       : (product?.discountType === 'percentage' || discountPercentage > 0)
         ? `${discountPercentage > 0 ? discountPercentage.toFixed(0) : discountValue.toFixed(0)}% off`
         : '';
+  const stockCount = Math.max(0, Number(product?.stock || 0));
+  const maxQty = stockCount > 0 ? stockCount : 1;
+  const canAddToCart = stockCount > 0;
+
+  const productListImage = images[0] || null;
+  const compareWishlistPayload = useMemo(
+    () => ({
+      id: product?._id || product?.id || productId,
+      name: product?.name || 'Product',
+      image: productListImage,
+      price: displayPrice,
+    }),
+    [displayPrice, product?._id, product?.id, product?.name, productId, productListImage],
+  );
+
+  const handleAddToCart = async () => {
+    if (!canAddToCart) return;
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      const userId = user?.id || user?._id;
+      const resolvedProductId = product?._id || product?.id || productId;
+
+      if (!userId) {
+        setActiveMessage('Please sign in first to add products to cart.');
+        return;
+      }
+
+      await api.post('/cart', { userId, productId: resolvedProductId });
+      setActiveMessage(`${product.name} quantity updated in cart.`);
+    } catch (err) {
+      setActiveMessage(err.response?.data?.message || 'Could not add to cart.');
+    }
+  };
+
+  const handleAddToCompare = () => {
+    addCompareItem(compareWishlistPayload);
+    setActiveMessage(`${product.name} added to compare list.`);
+  };
+
+  const handleAddToWishlist = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      const userId = user?.id || user?._id;
+
+      if (!userId) {
+        setActiveMessage('Please sign in first to add products to wishlist.');
+        return;
+      }
+
+      await api.post('/wishlist', {
+        user_id: userId,
+        product_id: compareWishlistPayload.id,
+      });
+      setActiveMessage(`${product.name} added to wishlist.`);
+    } catch (err) {
+      setActiveMessage(err.response?.data?.message || 'Could not add to wishlist.');
+    }
+  };
+
+  const decreaseQty = () => setQuantity((prev) => Math.max(1, prev - 1));
+  const increaseQty = () => setQuantity((prev) => Math.min(maxQty, prev + 1));
 
   if (loading) {
     return (
@@ -68,6 +132,11 @@ export default function ProductDetails() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
+      {activeMessage && (
+        <div className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">
+          {activeMessage}
+        </div>
+      )}
       <div className="mb-4 flex items-center justify-between">
         <button
           type="button"
@@ -131,7 +200,7 @@ export default function ProductDetails() {
 
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-600">
               <span>⭐ {Number(product.ratings?.average || 0).toFixed(1)} ({Number(product.ratings?.count || 0)})</span>
-              <span>Stock: {Number(product.stock || 0)}</span>
+              <span>Stock: {stockCount}</span>
             </div>
 
             {Array.isArray(product.tags) && product.tags.length > 0 && (
@@ -143,6 +212,54 @@ export default function ProductDetails() {
                 ))}
               </div>
             )}
+
+            <div className="mt-6 rounded-xl border border-slate-200 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="inline-flex h-11 items-center overflow-hidden rounded-md border border-slate-300 bg-white">
+                  <button
+                    type="button"
+                    onClick={decreaseQty}
+                    className="h-full w-10 text-lg font-semibold text-slate-700 transition hover:bg-slate-100"
+                    aria-label="Decrease quantity"
+                  >
+                    -
+                  </button>
+                  <span className="flex h-full min-w-[3rem] items-center justify-center border-x border-slate-300 px-3 text-sm font-semibold text-slate-900">
+                    {quantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={increaseQty}
+                    disabled={!canAddToCart || quantity >= maxQty}
+                    className="h-full w-10 text-lg font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300"
+                    aria-label="Increase quantity"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => { void handleAddToCart(); }}
+                  disabled={!canAddToCart}
+                  className="h-11 rounded-md border border-lime-600 px-6 text-sm font-bold uppercase tracking-wide text-lime-700 transition hover:bg-lime-50 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400"
+                >
+                  Add To Cart
+                </button>
+              </div>
+              {!canAddToCart && (
+                <p className="mt-2 text-xs font-medium text-red-600">This item is currently out of stock.</p>
+              )}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-5 text-sm font-semibold text-lime-700">
+              <button type="button" onClick={handleAddToCompare} className="transition hover:text-lime-800">
+                ❤ Add To Compare
+              </button>
+              <button type="button" onClick={() => { void handleAddToWishlist(); }} className="transition hover:text-lime-800">
+                ✦ Add To Wishlist
+              </button>
+            </div>
 
             <div className="mt-6">
               <h2 className="text-lg font-semibold text-slate-900">Description</h2>

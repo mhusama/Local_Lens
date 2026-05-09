@@ -46,7 +46,7 @@ const buildResolvedTags = ({
         custom = uniqueTags(existingTags.filter((tag) => !prevAutoSet.has(normalizeTag(tag))));
     } else {
         const nextAutoSet = new Set(nextAuto);
-        custom = uniqueTags(providedTags).filter((tag) => !nextAutoSet.has(tag)).slice(0, 3);
+        custom = uniqueTags(providedTags).filter((tag) => !nextAutoSet.has(tag)).slice(0, 8);
     }
     return uniqueTags([...nextAuto, ...custom]);
 };

@@ -42,5 +42,3 @@ app.listen(port, () => {
     console.log("Server is running on port " + port);
 });
 
-
-//mongodb+srv://lens:lens@cluster0.mcmzgb7.mongodb.net/?appName=Cluster0

@@ -319,28 +319,15 @@ export default function SearchedItem() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {searchType === 'product' && (
-              <>
-                <select
-                  value={productSearchScope}
-                  onChange={(e) => setProductSearchScope(e.target.value)}
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-slate-900"
-                >
-                  <option value="2km">Within 2 km</option>
-                  <option value="5km">Within 5 km</option>
-                  <option value="all">Ignore location</option>
-                </select>
-                <select
-                  value={productSort}
-                  onChange={(e) => setProductSort(e.target.value)}
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-slate-900"
-                >
-                  <option value="closest">Closest Location</option>
-                  <option value="default">Newest</option>
-                  <option value="lowest_price">Lowest Price</option>
-                  <option value="highest_rating">Highest Rating</option>
-                  <option value="best_discount">Best Discount</option>
-                </select>
-              </>
+              <select
+                value={productSearchScope}
+                onChange={(e) => setProductSearchScope(e.target.value)}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-slate-900"
+              >
+                <option value="2km">Within 2 km</option>
+                <option value="5km">Within 5 km</option>
+                <option value="all">Ignore location</option>
+              </select>
             )}
             <div className="inline-flex overflow-hidden rounded-lg border border-slate-300">
               <button
@@ -440,7 +427,9 @@ export default function SearchedItem() {
                         <div className="text-slate-600">{p.shopName}</div>
                         {p.openingHours && <div className="text-slate-500">Hours: {p.openingHours}</div>}
                         <div className="mt-1">
-                          <span className="font-medium">${Number(p.price).toFixed(2)}</span>
+                          <span className="font-medium">
+                            ৳{Number((p.finalPrice ?? p.reducedPrice ?? p.price) || 0).toFixed(2)}
+                          </span>
                           <span className="text-slate-500 ml-2">★ {formatRating(p.rating)}</span>
                         </div>
                       </div>
@@ -454,14 +443,29 @@ export default function SearchedItem() {
 
         {searchType === 'product' && ((productSearchScope === 'all') || userLatLon) && !fetchLoading && !fetchError && (
           <section>
-            <h2 className="text-lg font-semibold text-slate-900 mb-3">
-              {productSearchScope === 'all' ? 'Products' : 'Nearby products'}
-              {productSearchScope !== 'all' && (
-                <span className="font-normal text-slate-500 text-sm ml-2">
-                  {productSort === 'closest' ? 'sorted by distance' : 'distance shown when available'}
-                </span>
-              )}
-            </h2>
+            <div className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {productSearchScope === 'all' ? 'Products' : 'Nearby products'}
+                </h2>
+                {productSearchScope !== 'all' && (
+                  <p className="mt-1 text-sm text-slate-500">
+                    {productSort === 'closest' ? 'Sorted by distance.' : 'Distance shown when available.'}
+                  </p>
+                )}
+              </div>
+              <select
+                value={productSort}
+                onChange={(e) => setProductSort(e.target.value)}
+                className="w-full sm:w-auto sm:min-w-[12rem] shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-slate-900"
+              >
+                <option value="closest">Closest Location</option>
+                <option value="default">Newest</option>
+                <option value="lowest_price">Lowest Price</option>
+                <option value="highest_rating">Highest Rating</option>
+                <option value="best_discount">Best Discount</option>
+              </select>
+            </div>
             {sorted.length === 0 ? (
               <p className="text-slate-600 rounded-xl border border-slate-200 bg-white px-4 py-8 text-center">
                 {productSearchScope === 'all'
@@ -471,8 +475,6 @@ export default function SearchedItem() {
             ) : (
               <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                 {sorted.map((p) => {
-                  const image = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null;
-                  const imageUrl = image?.startsWith('/uploads/') ? `http://localhost:5001${image}` : image;
                   const basePrice = Number(p.price || 0);
                   const finalPrice = Number((p.finalPrice ?? p.reducedPrice ?? p.price) || 0);
                   const discountValue = Number.isFinite(Number(p.discountValue)) ? Number(p.discountValue) : 0;
@@ -497,13 +499,6 @@ export default function SearchedItem() {
                         }}
                         className="block w-full text-left"
                       >
-                        <div className="h-40 w-full bg-slate-100">
-                          {imageUrl ? (
-                            <img src={imageUrl} alt={p.name} className="h-full w-full object-cover" />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-xs text-slate-500">No image</div>
-                          )}
-                        </div>
                         <div className="p-3">
                           <div className="line-clamp-1 text-sm font-semibold text-slate-900">{p.name}</div>
                           <div className="mt-1 line-clamp-1 text-xs text-slate-600">{p.shopName}</div>

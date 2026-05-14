@@ -1,12 +1,13 @@
 import express from "express";
-import { getAdmins, createAdmin } from "../controllers/adminController.js";
+import { adminLogin, getAdmins, createAdmin } from "../controllers/adminController.js";
+import { requireAdmin } from "../middleware/requireAdmin.js";
 
 const router = express.Router();
 
-// GET /api/admins - Get all admins
-router.get("/", getAdmins);
+router.post("/login", adminLogin);
 
-// POST /api/admins - Create a new admin
+router.get("/", requireAdmin, getAdmins);
+
 router.post("/", createAdmin);
 
 export default router;

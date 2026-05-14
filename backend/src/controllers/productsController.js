@@ -13,12 +13,20 @@ const mapProductForClient = (p) => {
         id: p._id?.toString(),
         name: p.name,
         price: p.price,
+        finalPrice: p.finalPrice ?? null,
+        reducedPrice: p.reducedPrice ?? null,
+        discountType: p.discountType ?? null,
+        discountValue: p.discountValue ?? null,
+        discountPercentage: p.discountPercentage ?? null,
         shopName: p.shop?.shopName ?? "Unknown",
         shopId: p.shop?._id?.toString(),
         location: lat != null && lon != null ? { lat, lon } : null,
         openingHours: p.openingHours || p.shop?.openingHours || null,
         tags: Array.isArray(p.tags) ? p.tags : [],
         rating: p.ratings?.average ?? 0,
+        images: Array.isArray(p.images) ? p.images : [],
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
     };
 };
 

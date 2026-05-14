@@ -14,6 +14,13 @@ import CreateAccount from './pages/CreateAccount.jsx';
 import CreateShop from './pages/CreateShop.jsx';
 import ProductDetails from './pages/ProductDetails.jsx';
 import ContactUs from './pages/ContactUs.jsx';
+import AdminShell from './layouts/AdminShell.jsx';
+import RequireAdminOutlet from './layouts/RequireAdminOutlet.jsx';
+import AdminLogin from './pages/admin/AdminLogin.jsx';
+import AdminSignup from './pages/admin/AdminSignup.jsx';
+import AdminHome from './pages/admin/AdminHome.jsx';
+import AdminReports from './pages/admin/AdminReports.jsx';
+import { ADMIN_PORTAL_BASE, ADMIN_SECRET_SIGNUP_SEGMENT } from './constants/adminPortal';
 
 function AppLayout() {
   return (
@@ -60,6 +67,16 @@ function App() {
   return (
     <Router>
       <Routes>
+        <Route path={ADMIN_PORTAL_BASE} element={<AdminShell />}>
+          <Route path="login" element={<AdminLogin />} />
+          <Route path={ADMIN_SECRET_SIGNUP_SEGMENT} element={<AdminSignup />} />
+          <Route element={<RequireAdminOutlet />}>
+            <Route index element={<AdminHome />} />
+            <Route path="reports" element={<AdminReports />} />
+            <Route path="*" element={<Navigate to={ADMIN_PORTAL_BASE} replace />} />
+          </Route>
+        </Route>
+
         <Route element={<AppLayout />}>
           <Route path="/" element={<LandingPage />} />
           <Route path="/create-account" element={<CreateAccount />} />

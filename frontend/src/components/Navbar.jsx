@@ -1,5 +1,12 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { PRODUCT_CATEGORIES, categoryToSlug } from '../constants/categories';
+
+function categoryFromQuery(q) {
+  const lower = String(q || '').trim().toLowerCase();
+  if (!lower) return null;
+  return PRODUCT_CATEGORIES.find((c) => categoryToSlug(c) === lower || c.toLowerCase() === lower) || null;
+}
 
 function getStoredUser() {
   try {
@@ -11,8 +18,19 @@ function getStoredUser() {
 
 export default function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [query, setQuery] = useState('');
-  const [searchType, setSearchType] = useState('product');
+  const [selectedCategory, setSelectedCategory] = useState('');
+
+  useEffect(() => {
+    if (!location.pathname.startsWith('/search')) {
+      setSelectedCategory('');
+      return;
+    }
+    const qFromUrl = new URLSearchParams(location.search).get('q') ?? '';
+    setQuery(qFromUrl);
+    setSelectedCategory(categoryFromQuery(qFromUrl) || '');
+  }, [location.pathname, location.search]);
 
   const user = getStoredUser();
   const token = localStorage.getItem('token');
@@ -32,11 +50,42 @@ export default function Navbar() {
     navigate(path);
   };
 
+  const runProductSearch = (q) => {
+    const trimmed = String(q || '').trim();
+    const params = new URLSearchParams();
+    params.set('type', 'product');
+    if (trimmed) {
+      params.set('q', trimmed);
+    } else {
+      params.set('browse', 'all');
+    }
+    navigate(`/search?${params.toString()}`);
+  };
+
+  const handleCategoryChange = (e) => {
+    const cat = e.target.value;
+    setSelectedCategory(cat);
+    if (!cat) {
+      setQuery('');
+      runProductSearch('');
+      return;
+    }
+    const slug = categoryToSlug(cat);
+    setQuery(slug);
+    runProductSearch(slug);
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
-    const q = query.trim();
-    if (!q) return;
-    navigate(`/search?q=${encodeURIComponent(q)}&type=${encodeURIComponent(searchType)}`);
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setSelectedCategory('');
+      runProductSearch('');
+      return;
+    }
+    const matched = categoryFromQuery(trimmed);
+    setSelectedCategory(matched || '');
+    runProductSearch(matched ? categoryToSlug(matched) : trimmed);
   };
 
   const primaryNavItems = [
@@ -63,24 +112,32 @@ export default function Navbar() {
 
         <form onSubmit={handleSearch} className="order-3 flex w-full items-center gap-2 md:order-none md:w-auto md:flex-1">
           <select
-            value={searchType}
-            onChange={(e) => setSearchType(e.target.value)}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
-            aria-label="Search type"
+            value={selectedCategory}
+            onChange={handleCategoryChange}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 sm:max-w-[11rem]"
+            aria-label="Product category"
           >
-            <option value="product">Product</option>
-            <option value="shop">Shop</option>
+            <option value="">All categories</option>
+            {PRODUCT_CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
           </select>
           <input
             type="search"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={searchType === 'shop' ? 'Search shops...' : 'Search products...'}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
+            onChange={(e) => {
+              const next = e.target.value;
+              setQuery(next);
+              setSelectedCategory(categoryFromQuery(next) || '');
+            }}
+            placeholder="Search products..."
+            className="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
           />
           <button
             type="submit"
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="shrink-0 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
           >
             Search
           </button>

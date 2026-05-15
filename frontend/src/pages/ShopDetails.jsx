@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Cropper from 'react-easy-crop';
 import api from '../api/client';
+import ReportShopModal from '../components/ReportShopModal.jsx';
 import { PRODUCT_CATEGORIES } from '../constants/categories';
 import { getCroppedBlob } from '../utils/cropImage';
 import { formatProductOffLabel } from '../utils/discountLabel.js';
@@ -74,6 +75,7 @@ export default function ShopDetails() {
   const [shopTxLoading, setShopTxLoading] = useState(false);
   const [shopTxList, setShopTxList] = useState([]);
   const [shopTxError, setShopTxError] = useState('');
+  const [reportModalOpen, setReportModalOpen] = useState(false);
 
   const user = useMemo(() => {
     try {
@@ -585,6 +587,21 @@ export default function ShopDetails() {
                 >
                   Chat
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const uid = user?.id || user?._id;
+                    if (!uid) {
+                      toast.error('Please sign in to report a shop.');
+                      navigate('/signin');
+                      return;
+                    }
+                    setReportModalOpen(true);
+                  }}
+                  className="rounded-lg border border-rose-200 bg-rose-50/80 px-3 py-2 text-sm font-medium text-rose-800 hover:bg-rose-100"
+                >
+                  Report
+                </button>
               </>
             )}
             <button
@@ -1052,6 +1069,13 @@ export default function ShopDetails() {
           </div>
         </div>
       )}
+
+      <ReportShopModal
+        open={reportModalOpen}
+        onClose={() => setReportModalOpen(false)}
+        shopId={shopId}
+        shopName={shop?.shopName}
+      />
     </div>
   );
 }

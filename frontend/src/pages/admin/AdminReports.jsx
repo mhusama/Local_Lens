@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import { adminAuthHeader } from '../../utils/adminAuth';
 
 const STATUS_OPTIONS = ['pending', 'reviewing', 'resolved', 'dismissed'];
+
+const STATUS_STYLES = {
+  pending: 'bg-amber-100 text-amber-900 ring-amber-200',
+  reviewing: 'bg-sky-100 text-sky-900 ring-sky-200',
+  resolved: 'bg-emerald-100 text-emerald-900 ring-emerald-200',
+  dismissed: 'bg-slate-200 text-slate-800 ring-slate-300',
+};
 
 function idString(value) {
   if (value == null) return '—';
@@ -18,10 +26,23 @@ function reporterLabel(r) {
   return u.name || u.username || u.email || idString(u._id);
 }
 
+function shopLabel(r) {
+  const s = r.shopId;
+  if (s && typeof s === 'object' && s.shopName) return s.shopName;
+  return idString(r.shopId);
+}
+
+function shopIdForLink(r) {
+  const s = r.shopId;
+  if (s && typeof s === 'object' && s._id != null) return idString(s._id);
+  return idString(r.shopId);
+}
+
 export default function AdminReports() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,9 +65,13 @@ export default function AdminReports() {
   const handleStatusChange = async (reportId, status) => {
     setUpdatingId(reportId);
     try {
-      await api.patch(`/reports/${reportId}`, { status }, { headers: adminAuthHeader() });
+      const { data } = await api.patch(`/reports/${reportId}`, { status }, { headers: adminAuthHeader() });
+      const updated = data?.report;
       setReports((prev) =>
-        prev.map((r) => (idString(r._id) === idString(reportId) ? { ...r, status } : r)),
+        prev.map((r) => {
+          if (idString(r._id) !== idString(reportId)) return r;
+          return updated && typeof updated === 'object' ? { ...r, ...updated } : { ...r, status };
+        }),
       );
       toast.success('Status updated');
     } catch (err) {
@@ -58,99 +83,115 @@ export default function AdminReports() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10">
+    <div className="mx-auto max-w-5xl px-4 py-10">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Reports</h1>
-          <p className="mt-1 text-slate-600">
-            User-submitted reports for fraud, harmful products, or abusive behaviour.
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Shop reports</h1>
+          <p className="mt-1 max-w-xl text-slate-600">
+            Community reports about shops. Open the public shop page from a card when you need more context.
           </p>
         </div>
         <button
           type="button"
           onClick={() => load()}
           disabled={loading}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-50"
         >
           Refresh
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm text-slate-700">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3">Created</th>
-                <th className="px-4 py-3">Reporter</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">Entity ID</th>
-                <th className="px-4 py-3">Reason</th>
-                <th className="px-4 py-3">Description</th>
-                <th className="px-4 py-3">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
-                    Loading…
-                  </td>
-                </tr>
-              ) : reports.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
-                    No reports yet.
-                  </td>
-                </tr>
-              ) : (
-                reports.map((r) => {
-                  const rid = idString(r._id);
-                  return (
-                    <tr key={rid} className="hover:bg-slate-50">
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-500">
+      {loading ? (
+        <div className="rounded-2xl border border-slate-200 bg-white py-20 text-center text-slate-500 shadow-sm">Loading…</div>
+      ) : reports.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 py-20 text-center text-slate-600">
+          No shop reports yet.
+        </div>
+      ) : (
+        <ul className="space-y-4">
+          {reports.map((r) => {
+            const rid = idString(r._id);
+            const sid = shopIdForLink(r);
+            const expanded = expandedId === rid;
+            return (
+              <li
+                key={rid}
+                className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md"
+              >
+                <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ring-1 ring-inset ${STATUS_STYLES[r.status] || STATUS_STYLES.pending}`}
+                      >
+                        {r.status}
+                      </span>
+                      <span className="text-xs text-slate-500">
                         {r.createdAt
                           ? new Date(r.createdAt).toLocaleString(undefined, {
                               dateStyle: 'medium',
                               timeStyle: 'short',
                             })
-                          : '—'}
-                      </td>
-                      <td className="max-w-[140px] truncate px-4 py-3 text-slate-900" title={reporterLabel(r)}>
-                        {reporterLabel(r)}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 capitalize">{r.reportedEntityType}</td>
-                      <td className="max-w-[120px] truncate px-4 py-3 font-mono text-xs text-slate-500">
-                        {idString(r.reportedEntityId)}
-                      </td>
-                      <td className="max-w-[120px] truncate px-4 py-3 text-slate-800" title={r.reason}>
-                        {r.reason}
-                      </td>
-                      <td className="max-w-xs truncate px-4 py-3 text-slate-600" title={r.description}>
-                        {r.description || '—'}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3">
-                        <select
-                          value={r.status}
-                          disabled={updatingId === rid}
-                          onChange={(e) => handleStatusChange(rid, e.target.value)}
-                          className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium text-slate-800 outline-none focus:border-slate-900"
-                        >
-                          {STATUS_OPTIONS.map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                          : ''}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Reported shop</p>
+                      <p className="truncate text-lg font-semibold text-slate-900">{shopLabel(r)}</p>
+                      {r.shopId && typeof r.shopId === 'object' && r.shopId.category ? (
+                        <p className="text-sm text-slate-600">{r.shopId.category}</p>
+                      ) : null}
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Reporter</p>
+                      <p className="text-sm font-medium text-slate-800">{reporterLabel(r)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Reason</p>
+                      <p className="text-sm text-slate-900">{r.reason}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedId(expanded ? null : rid)}
+                      className="text-sm font-semibold text-rose-700 hover:text-rose-900"
+                    >
+                      {expanded ? 'Hide details' : 'Show details'}
+                    </button>
+                    {expanded && (
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+                        <p className="whitespace-pre-wrap">{r.description?.trim() || 'No additional details.'}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 flex-col gap-3 sm:w-48">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Update status</label>
+                    <select
+                      value={r.status}
+                      disabled={updatingId === rid}
+                      onChange={(e) => handleStatusChange(rid, e.target.value)}
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+                    >
+                      {STATUS_OPTIONS.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                    <Link
+                      to={`/shop/${sid}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-sm font-medium text-slate-800 hover:bg-slate-50"
+                    >
+                      View shop ↗
+                    </Link>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

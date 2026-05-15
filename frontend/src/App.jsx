@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import ShopDetails from './pages/ShopDetails.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import LandingPage from './pages/LandingPage.jsx';
@@ -9,6 +9,8 @@ import ComparePage from './pages/ComparePage.jsx';
 import CartPage from './pages/CartPage.jsx';
 import WishlistPage from './pages/WishlistPage.jsx';
 import MyAccount from './pages/MyAccount.jsx';
+import TransactionsPage from './pages/TransactionsPage.jsx';
+import EditProfilePage from './pages/EditProfilePage.jsx';
 import Navbar from './components/Navbar.jsx';
 import CreateAccount from './pages/CreateAccount.jsx';
 import CreateShop from './pages/CreateShop.jsx';
@@ -22,6 +24,18 @@ import AdminHome from './pages/admin/AdminHome.jsx';
 import AdminReports from './pages/admin/AdminReports.jsx';
 import { ADMIN_PORTAL_BASE, ADMIN_SECRET_SIGNUP_SEGMENT } from './constants/adminPortal';
 
+function readClientSession() {
+  let parsedUser;
+  try {
+    parsedUser = JSON.parse(localStorage.getItem('user') || 'null');
+  } catch {
+    parsedUser = null;
+  }
+  const token = localStorage.getItem('token');
+  const loggedIn = Boolean(parsedUser || token);
+  return { parsedUser, token, loggedIn };
+}
+
 function AppLayout() {
   return (
     <div className="min-h-screen bg-slate-50">
@@ -32,35 +46,28 @@ function AppLayout() {
 }
 
 function MyAccountRoute() {
-  let user = null;
-  try {
-    user = JSON.parse(localStorage.getItem('user') || 'null');
-  } catch {
-    user = null;
-  }
-  const token = localStorage.getItem('token');
-  const loggedIn = Boolean(user || token);
+  const { loggedIn } = readClientSession();
   return loggedIn ? <MyAccount /> : <SignIn />;
 }
 
 function DashboardRoute() {
-  let user = null;
-  try {
-    user = JSON.parse(localStorage.getItem('user') || 'null');
-  } catch {
-    user = null;
-  }
-  return user ? <Dashboard /> : <Navigate to="/signin" replace />;
+  const { parsedUser } = readClientSession();
+  return parsedUser ? <Dashboard /> : <Navigate to="/signin" replace />;
 }
 
 function CreateShopRoute() {
-  let user = null;
-  try {
-    user = JSON.parse(localStorage.getItem('user') || 'null');
-  } catch {
-    user = null;
-  }
-  return user ? <CreateShop /> : <Navigate to="/signin" replace />;
+  const { parsedUser } = readClientSession();
+  return parsedUser ? <CreateShop /> : <Navigate to="/signin" replace />;
+}
+
+function SignedInRoute({ children }) {
+  const { loggedIn } = readClientSession();
+  return loggedIn ? children : <Navigate to="/signin" replace />;
+}
+
+function SearchRoute() {
+  const { search } = useLocation();
+  return <SearchedItem key={search} />;
 }
 
 function App() {
@@ -82,7 +89,7 @@ function App() {
           <Route path="/create-account" element={<CreateAccount />} />
           <Route path="/sign-in" element={<SignIn />} />
           <Route path="/signin" element={<SignIn />} />
-          <Route path="/search" element={<SearchedItem />} />
+          <Route path="/search" element={<SearchRoute />} />
           <Route path="/my-account" element={<MyAccountRoute />} />
           <Route path="/create-user" element={<CreateAccount />} />
           <Route path="/dashboard" element={<DashboardRoute />} />
@@ -92,6 +99,22 @@ function App() {
           <Route path="/category/:categoryName" element={<CategoryPage />} />
           <Route path="/compare" element={<ComparePage />} />
           <Route path="/cart" element={<CartPage />} />
+          <Route
+            path="/transactions"
+            element={
+              <SignedInRoute>
+                <TransactionsPage />
+              </SignedInRoute>
+            }
+          />
+          <Route
+            path="/edit-profile"
+            element={
+              <SignedInRoute>
+                <EditProfilePage />
+              </SignedInRoute>
+            }
+          />
           <Route path="/wishlist" element={<WishlistPage />} />
           <Route path="/contact" element={<ContactUs />} />
           <Route path="*" element={<Navigate to="/" replace />} />

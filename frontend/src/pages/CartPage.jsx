@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
@@ -11,6 +11,7 @@ export default function CartPage() {
   const [error, setError] = useState('');
   const [updatingItemIds, setUpdatingItemIds] = useState({});
   const [clearing, setClearing] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
   const navigate = useNavigate();
 
   const getUserId = () => {
@@ -24,7 +25,7 @@ export default function CartPage() {
 
   const userId = getUserId();
 
-  const loadCart = async () => {
+  const loadCart = useCallback(async () => {
     if (!userId) {
       setItems([]);
       setLoading(false);
@@ -41,11 +42,14 @@ export default function CartPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
-    void loadCart();
-  }, [userId]);
+    const t = window.setTimeout(() => {
+      void loadCart();
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [loadCart]);
 
   const clearCart = async () => {
     if (!userId) return;
@@ -126,6 +130,21 @@ export default function CartPage() {
       toast.error(err.response?.data?.message || 'Failed to update quantity');
     } finally {
       withPending(id, false);
+    }
+  };
+
+  const proceedToCheckout = async () => {
+    if (!userId || items.length === 0) return;
+    setCheckingOut(true);
+    try {
+      await api.post('/transactions/checkout', { userId });
+      toast.success('Order placed successfully');
+      setItems([]);
+      navigate('/transactions');
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Checkout failed');
+    } finally {
+      setCheckingOut(false);
     }
   };
 
@@ -303,9 +322,13 @@ export default function CartPage() {
                 </div>
                 <button
                   type="button"
-                  className="mt-5 w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  onClick={() => {
+                    void proceedToCheckout();
+                  }}
+                  disabled={checkingOut || items.length === 0}
+                  className="mt-5 w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Proceed to Checkout
+                  {checkingOut ? 'Processing…' : 'Proceed to Checkout'}
                 </button>
               </div>
             </div>

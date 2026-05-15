@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from 're
 import L from 'leaflet';
 import api from '../api/client';
 import { toLatLon, distanceMeters } from '../utils/geo';
+import { formatProductOffLabel } from '../utils/discountLabel.js';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -47,15 +48,15 @@ function getHomeLatLonFromStorage() {
 }
 
 async function getHomeLatLonFromBackend() {
-  let user = null;
+  let parsedUser;
   try {
-    user = JSON.parse(localStorage.getItem('user') || 'null');
+    parsedUser = JSON.parse(localStorage.getItem('user') || 'null');
   } catch {
-    user = null;
+    parsedUser = null;
   }
 
-  const email = user?.email;
-  const username = user?.username;
+  const email = parsedUser?.email;
+  const username = parsedUser?.username;
   if (!email && !username) return null;
 
   const { data } = await api.get('/users', {
@@ -92,13 +93,17 @@ function MapBounds({ userLatLon, markerPositions }) {
   return null;
 }
 
+const SORT_OPTIONS = new Set(['closest', 'default', 'lowest_price', 'highest_rating', 'best_discount']);
+
 export default function SearchedItem() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const q = searchParams.get('q')?.trim() ?? '';
+  const browseAll = searchParams.get('browse') === 'all';
+  const qParam = searchParams.get('q')?.trim() ?? '';
+  const sortFromUrl = searchParams.get('sort');
   const searchType = (searchParams.get('type') || 'product').toLowerCase() === 'shop' ? 'shop' : 'product';
-  const [productSearchScope, setProductSearchScope] = useState('2km');
-  const [productSort, setProductSort] = useState('closest');
+  const [productSearchScope, setProductSearchScope] = useState(() => (browseAll ? 'all' : '2km'));
+  const [productSort, setProductSort] = useState(() => (SORT_OPTIONS.has(sortFromUrl) ? sortFromUrl : 'closest'));
 
   const [userLatLon, setUserLatLon] = useState(null);
   const [locationSource, setLocationSource] = useState('current');
@@ -168,7 +173,7 @@ export default function SearchedItem() {
   }, [locationSource, requestLocation]);
 
   useEffect(() => {
-    if (!q) return;
+    if (!browseAll && !qParam) return;
     if (searchType === 'product' && productSearchScope !== 'all' && !userLatLon) return;
 
     let cancelled = false;
@@ -177,7 +182,7 @@ export default function SearchedItem() {
       setFetchError(null);
       try {
         if (searchType === 'shop') {
-          const { data } = await api.get('/shops', { params: { q } });
+          const { data } = await api.get('/shops', { params: { q: qParam } });
           if (!cancelled) {
             setShops(Array.isArray(data?.shops) ? data.shops : []);
             setProducts([]);
@@ -191,16 +196,14 @@ export default function SearchedItem() {
           const { data } = selectedRadius
             ? await api.get('/products', {
                 params: {
-                  name: q,
+                  name: qParam,
                   lat: userLatLon.lat,
                   lon: userLatLon.lon,
                   radius: selectedRadius,
                 },
               })
             : await api.get('/products/search', {
-                params: {
-                  query: q,
-                },
+                params: browseAll ? {} : { query: qParam },
               });
           if (!cancelled) {
             setProducts(Array.isArray(data?.products) ? data.products : []);
@@ -227,7 +230,7 @@ export default function SearchedItem() {
     return () => {
       cancelled = true;
     };
-  }, [q, userLatLon, searchType, productSearchScope]);
+  }, [browseAll, qParam, userLatLon, searchType, productSearchScope]);
 
   const enriched = useMemo(() => {
     return products.map((p) => {
@@ -294,7 +297,7 @@ export default function SearchedItem() {
     return Number(r).toFixed(1);
   };
 
-  if (!q) {
+  if (!browseAll && !qParam) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
         <p className="text-slate-600">No search query. Add ?q=… to the URL or start from home.</p>
@@ -314,7 +317,13 @@ export default function SearchedItem() {
               ← Home
             </Link>
             <h1 className="text-xl font-semibold mt-1">
-              {searchType === 'shop' ? 'Shop' : 'Product'} results for &ldquo;{q}&rdquo;
+              {searchType === 'shop' ? (
+                <>Shop results for &ldquo;{qParam}&rdquo;</>
+              ) : browseAll ? (
+                <>All products</>
+              ) : (
+                <>Product results for &ldquo;{qParam}&rdquo;</>
+              )}
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -477,14 +486,7 @@ export default function SearchedItem() {
                 {sorted.map((p) => {
                   const basePrice = Number(p.price || 0);
                   const finalPrice = Number((p.finalPrice ?? p.reducedPrice ?? p.price) || 0);
-                  const discountValue = Number.isFinite(Number(p.discountValue)) ? Number(p.discountValue) : 0;
-                  const discountPercentage = Number.isFinite(Number(p.discountPercentage)) ? Number(p.discountPercentage) : 0;
-                  const offLabel =
-                    p.discountType === 'flat'
-                      ? `৳${discountValue.toFixed(0)} off`
-                      : (p.discountType === 'percentage' || discountPercentage > 0)
-                        ? `${discountPercentage > 0 ? discountPercentage.toFixed(0) : discountValue.toFixed(0)}% off`
-                        : '';
+                  const offLabel = formatProductOffLabel(p);
 
                   return (
                     <li

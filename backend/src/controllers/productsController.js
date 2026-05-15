@@ -24,6 +24,7 @@ const mapProductForClient = (p) => {
         openingHours: p.openingHours || p.shop?.openingHours || null,
         tags: Array.isArray(p.tags) ? p.tags : [],
         rating: p.ratings?.average ?? 0,
+        reviewCount: p.ratings?.count ?? 0,
         images: Array.isArray(p.images) ? p.images : [],
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
@@ -275,7 +276,8 @@ export const searchProducts = async (req, res) => {
         const products = await Product.find(filter)
             .populate('shop', productPopulateSelect)
             .lean();
-        res.status(200).json({ products });
+        const mapped = products.map(mapProductForClient);
+        res.status(200).json({ products: mapped });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });

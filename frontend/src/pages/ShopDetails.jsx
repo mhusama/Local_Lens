@@ -5,6 +5,7 @@ import Cropper from 'react-easy-crop';
 import api from '../api/client';
 import { PRODUCT_CATEGORIES } from '../constants/categories';
 import { getCroppedBlob } from '../utils/cropImage';
+import { formatProductOffLabel } from '../utils/discountLabel.js';
 
 const INITIAL_PRODUCT_FORM = {
   name: '',
@@ -69,6 +70,10 @@ export default function ShopDetails() {
   const [productCustomTags, setProductCustomTags] = useState([]);
   const [productTagInput, setProductTagInput] = useState('');
   const [productTagError, setProductTagError] = useState('');
+  const [shopTxOpen, setShopTxOpen] = useState(false);
+  const [shopTxLoading, setShopTxLoading] = useState(false);
+  const [shopTxList, setShopTxList] = useState([]);
+  const [shopTxError, setShopTxError] = useState('');
 
   const user = useMemo(() => {
     try {
@@ -83,6 +88,27 @@ export default function ShopDetails() {
     const ownerId = String(shop?.user_id?._id || shop?.user_id || '');
     return Boolean(currentUserId && ownerId && currentUserId === ownerId);
   }, [user, shop]);
+
+  const openShopTransactions = async () => {
+    const uid = user?.id || user?._id;
+    if (!uid || !shopId) {
+      toast.error('Sign in to view shop transactions.');
+      return;
+    }
+    setShopTxOpen(true);
+    setShopTxLoading(true);
+    setShopTxError('');
+    setShopTxList([]);
+    try {
+      const { data } = await api.get(`/transactions/by-shop/${shopId}`, { params: { userId: uid } });
+      setShopTxList(Array.isArray(data?.transactions) ? data.transactions : []);
+    } catch (err) {
+      setShopTxError(err.response?.data?.message || err.message || 'Could not load transactions');
+      setShopTxList([]);
+    } finally {
+      setShopTxLoading(false);
+    }
+  };
 
   const fetchShopAndProducts = async () => {
     setLoading(true);
@@ -571,6 +597,17 @@ export default function ShopDetails() {
             {isOwner && (
               <button
                 type="button"
+                onClick={() => {
+                  void openShopTransactions();
+                }}
+                className="rounded-lg border border-emerald-600 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100"
+              >
+                Transactions
+              </button>
+            )}
+            {isOwner && (
+              <button
+                type="button"
                 onClick={() => navigate('/dashboard')}
                 className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
@@ -638,18 +675,7 @@ export default function ShopDetails() {
               const count = Number(product.ratings?.count || 0);
               const basePrice = Number(product.price || 0);
               const finalPrice = Number((product.finalPrice ?? product.reducedPrice ?? product.price) || 0);
-              const safeDiscountValue = Number.isFinite(Number(product.discountValue))
-                ? Number(product.discountValue)
-                : 0;
-              const safeDiscountPercentage = Number.isFinite(Number(product.discountPercentage))
-                ? Number(product.discountPercentage)
-                : 0;
-              const offLabel =
-                product.discountType === 'flat'
-                  ? `৳${safeDiscountValue.toFixed(0)} off`
-                  : (product.discountType === 'percentage' || safeDiscountPercentage > 0)
-                    ? `${safeDiscountPercentage > 0 ? safeDiscountPercentage.toFixed(0) : safeDiscountValue.toFixed(0)}% off`
-                    : '';
+              const offLabel = formatProductOffLabel(product);
 
               return (
                 <article
@@ -910,6 +936,76 @@ export default function ShopDetails() {
             <div className="mt-3 flex justify-end gap-2">
               <button type="button" onClick={() => setCropTargetId(null)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
               <button type="button" onClick={saveCrop} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Apply Crop</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {shopTxOpen && (
+        <div
+          role="presentation"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={() => setShopTxOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shop-tx-title"
+            className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <h3 id="shop-tx-title" className="text-lg font-semibold text-slate-900">
+                Orders including {shop.shopName}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShopTxOpen(false)}
+                className="rounded-lg px-2 py-1 text-slate-600 hover:bg-slate-100"
+              >
+                Close
+              </button>
+            </div>
+            <div className="max-h-[calc(90vh-52px)] overflow-y-auto p-4">
+              {shopTxLoading && <p className="text-center text-slate-600">Loading…</p>}
+              {shopTxError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">{shopTxError}</div>
+              )}
+              {!shopTxLoading && !shopTxError && shopTxList.length === 0 && (
+                <p className="text-center text-slate-600">No orders yet that include this shop.</p>
+              )}
+              {!shopTxLoading &&
+                !shopTxError &&
+                shopTxList.map((tx) => {
+                  const sid = String(shopId);
+                  const lines = (tx.items || []).filter((line) => String(line.shopId) === sid);
+                  const displayLines = lines.length ? lines : tx.items || [];
+                  return (
+                    <article key={tx._id} className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 last:mb-0">
+                      <div className="flex flex-wrap justify-between gap-2 text-sm">
+                        <span className="font-mono font-medium text-slate-800">Order …{String(tx._id).slice(-8)}</span>
+                        <span className="text-slate-500">
+                          {tx.createdAt ? new Date(tx.createdAt).toLocaleString() : ''}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">Customer user id: {String(tx.userId)}</p>
+                      <ul className="mt-3 space-y-2 border-t border-slate-200 pt-3">
+                        {displayLines.map((line, idx) => (
+                          <li key={`${tx._id}-${idx}`} className="flex justify-between text-sm text-slate-800">
+                            <span>
+                              {line.productName} × {line.quantity}
+                            </span>
+                            <span className="font-medium">৳{Number(line.subtotal || 0).toFixed(2)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-2 flex justify-between border-t border-slate-200 pt-2 text-sm font-semibold text-slate-900">
+                        <span>Order total</span>
+                        <span>৳{Number(tx.total || 0).toFixed(2)}</span>
+                      </div>
+                    </article>
+                  );
+                })}
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PRODUCT_CATEGORIES, categoryToSlug } from '../constants/categories';
+import { PRODUCT_CATEGORIES } from '../constants/categories';
 
 const banners = [
   {
@@ -126,7 +126,9 @@ export default function LandingPage() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => navigate(`/category/${categoryToSlug(cat.category)}`)}
+                    onClick={() =>
+                      navigate(`/search?q=${encodeURIComponent(cat.category)}&type=product`)
+                    }
                     className="rounded bg-white/90 px-4 py-2 font-semibold text-slate-900 hover:bg-white"
                   >
                     SHOP NOW
@@ -139,13 +141,20 @@ export default function LandingPage() {
       </section>
 
       <section className="bg-white px-4 py-14">
-        <div className="mx-auto flex max-w-7xl flex-col items-center gap-8 rounded-2xl border border-slate-200 p-8 md:flex-row">
+        <button
+          type="button"
+          onClick={() => navigate('/search?browse=all&type=product&sort=best_discount')}
+          className="mx-auto flex w-full max-w-7xl cursor-pointer flex-col items-center gap-8 rounded-2xl border border-slate-200 p-8 text-left transition hover:border-slate-400 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 md:flex-row"
+        >
           <div className="max-w-lg">
             <h2 className="text-4xl font-bold">
               Sale 50% <span className="text-slate-700">OFF</span>
             </h2>
             <p className="mt-3 text-slate-600">
               Discover weekly deals and curated essentials with clean pricing and quick delivery.
+            </p>
+            <p className="mt-4 text-sm font-semibold text-slate-900 underline decoration-slate-400 underline-offset-4">
+              View all products by best discount →
             </p>
           </div>
           <div className="h-56 w-full overflow-hidden rounded-xl md:h-64">
@@ -155,7 +164,7 @@ export default function LandingPage() {
               className="h-full w-full object-cover"
             />
           </div>
-        </div>
+        </button>
       </section>
     </div>
   );

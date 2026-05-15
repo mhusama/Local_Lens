@@ -1,8 +1,9 @@
 import fs from "fs";
 import path from "path";
 import multer from "multer";
+import { UPLOADS_DIR } from "../paths.js";
 
-const uploadsDir = path.resolve("uploads");
+const uploadsDir = UPLOADS_DIR;
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -36,4 +37,10 @@ export const uploadProductImages = multer({
     storage,
     fileFilter,
     limits: { files: 3, fileSize: 8 * 1024 * 1024 },
+});
+
+export const uploadReviewImage = multer({
+    storage,
+    fileFilter,
+    limits: { files: 1, fileSize: 8 * 1024 * 1024 },
 });

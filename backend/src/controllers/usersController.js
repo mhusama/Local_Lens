@@ -58,9 +58,67 @@ export const createUser = async (req, res) => {
 
         await newUser.save();
 
-        res.status(201).json({ message: "User created successfully", user: newUser });
+        const created = newUser.toObject();
+        delete created.password;
+        res.status(201).json({ message: "User created successfully", user: created });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const updateUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { username, name, email, phone, password, longitude, latitude, location } = req.body;
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        if (email !== undefined && email !== user.email) {
+            const taken = await User.findOne({ email, _id: { $ne: id } });
+            if (taken) {
+                return res.status(400).json({ message: "Email is already in use" });
+            }
+            user.email = email;
+        }
+
+        if (username !== undefined && username !== user.username) {
+            const taken = await User.findOne({ username, _id: { $ne: id } });
+            if (taken) {
+                return res.status(400).json({ message: "Username is already taken" });
+            }
+            user.username = username;
+        }
+
+        if (name !== undefined) user.name = name;
+        if (phone !== undefined) user.phone = phone;
+
+        let lon = longitude !== undefined ? parseFloat(longitude) : null;
+        let lat = latitude !== undefined ? parseFloat(latitude) : null;
+        if ((!Number.isFinite(lon) || !Number.isFinite(lat)) && Array.isArray(location?.coordinates)) {
+            lon = parseFloat(location.coordinates[0]);
+            lat = parseFloat(location.coordinates[1]);
+        }
+        if (Number.isFinite(lon) && Number.isFinite(lat)) {
+            user.location = {
+                type: "Point",
+                coordinates: [lon, lat],
+            };
+        }
+
+        if (password !== undefined && String(password).trim() !== "") {
+            user.password = await bcrypt.hash(password, 10);
+        }
+
+        await user.save();
+        const safe = user.toObject();
+        delete safe.password;
+        return res.status(200).json({ message: "Profile updated", user: safe });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error" });
     }
 };

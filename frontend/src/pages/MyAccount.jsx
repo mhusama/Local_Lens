@@ -1,32 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Home, LogOut, Receipt, UserPen } from 'lucide-react';
 import { clearToken } from '../utils/auth';
 
 export default function MyAccount() {
   const navigate = useNavigate();
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [firstName, setFirstName] = useState('');
 
-  useEffect(() => {
-    let user = null;
+  const readSession = () => {
+    let parsed;
     try {
-      user = JSON.parse(localStorage.getItem('user') || 'null');
+      parsed = JSON.parse(localStorage.getItem('user') || 'null');
     } catch {
-      user = null;
+      parsed = null;
     }
     const token = localStorage.getItem('token');
-    setLoggedIn(Boolean(user || token));
-    if (user?.firstName) {
-      setFirstName(user.firstName);
-    } else if (user?.name) {
-      setFirstName(user.name.split(' ')[0]);
-    }
-  }, []);
+    const isLoggedIn = Boolean(parsed || token);
+    let greeting = '';
+    if (parsed?.firstName) greeting = parsed.firstName;
+    else if (parsed?.name) greeting = parsed.name.split(' ')[0];
+    return { loggedIn: isLoggedIn, firstName: greeting };
+  };
+
+  const [{ loggedIn, firstName }, setAccount] = useState(readSession);
 
   const handleSignOut = () => {
     clearToken();
     localStorage.removeItem('user');
-    setLoggedIn(false);
+    setAccount({ loggedIn: false, firstName: '' });
     navigate('/sign-in');
   };
 
@@ -57,27 +57,71 @@ export default function MyAccount() {
             </div>
           </div>
         ) : (
-          <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-slate-900">
-              Welcome{firstName ? `, ${firstName}` : ''}
-            </h1>
-            <p className="mt-3 text-slate-600 text-sm md:text-base">
-              Your account is active. You can continue shopping or sign out securely.
-            </p>
-            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+          <div className="mx-auto max-w-3xl">
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm md:p-10">
+              <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-slate-900">
+                Welcome{firstName ? `, ${firstName}` : ''}
+              </h1>
+              <p className="mt-3 text-slate-600 text-sm md:text-base">
+                Choose where to go next or manage your profile and orders.
+              </p>
+            </div>
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => navigate('/')}
-                className="rounded-xl border border-slate-300 bg-white px-8 py-3 font-medium text-slate-900 hover:bg-slate-50"
+                className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-slate-300 hover:shadow-md"
               >
-                Go to Home
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                  <Home className="h-6 w-6" />
+                </span>
+                <span>
+                  <span className="block text-base font-semibold text-slate-900">Go to Home</span>
+                  <span className="mt-0.5 block text-sm text-slate-600">Browse shops and products</span>
+                </span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/transactions')}
+                className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-slate-300 hover:shadow-md"
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-700">
+                  <Receipt className="h-6 w-6" />
+                </span>
+                <span>
+                  <span className="block text-base font-semibold text-slate-900">Transactions</span>
+                  <span className="mt-0.5 block text-sm text-slate-600">View past checkouts and totals</span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/edit-profile')}
+                className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-slate-300 hover:shadow-md"
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
+                  <UserPen className="h-6 w-6" />
+                </span>
+                <span>
+                  <span className="block text-base font-semibold text-slate-900">Edit profile</span>
+                  <span className="mt-0.5 block text-sm text-slate-600">Name, contact, location, password</span>
+                </span>
+              </button>
+
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="rounded-xl bg-slate-900 px-8 py-3 font-medium text-white hover:bg-slate-800"
+                className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-red-200 hover:bg-red-50/40 hover:shadow-md"
               >
-                Sign out
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-700">
+                  <LogOut className="h-6 w-6" />
+                </span>
+                <span>
+                  <span className="block text-base font-semibold text-slate-900">Sign out</span>
+                  <span className="mt-0.5 block text-sm text-slate-600">Leave this device securely</span>
+                </span>
               </button>
             </div>
           </div>

@@ -113,7 +113,7 @@ export default function LandingPage() {
               },
             ].map((cat) => (
               <div key={cat.category} className="group relative overflow-hidden rounded-xl shadow-lg transition hover:shadow-2xl">
-                <img src={cat.img} alt={cat.category} className="h-80 w-full object-contain bg-slate-100" />
+                <img src={cat.img} alt={cat.category} className="h-80 w-full object-cover" />
                 <div className="absolute inset-x-0 bottom-0 p-6 text-left">
                   <h3
                     className="mb-2 text-3xl font-bold text-white"

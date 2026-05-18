@@ -134,13 +134,10 @@ export default function Navbar() {
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-100"
+          className="flex h-28 w-80 min-w-[260px] overflow-hidden rounded-lg bg-white p-0 hover:bg-slate-100"
           aria-label="Go to landing page"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-white">
-            ◎
-          </span>
-          <span className="text-sm font-semibold tracking-wide text-slate-900 sm:text-base">LOCAL LENS</span>
+          <img src="/images/Designer.png" alt="Local Lens logo" className="block h-full w-full object-contain" />
         </button>
 
         <form onSubmit={handleSearch} className="order-3 flex w-full items-center gap-2 md:order-none md:w-auto md:flex-1">

@@ -130,11 +130,11 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 md:flex-nowrap">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-0 px-4 py-3 md:flex-nowrap">
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="flex h-28 w-80 min-w-[260px] overflow-hidden rounded-lg bg-white p-0 hover:bg-slate-100"
+          className="flex h-32 w-96 min-w-[300px] overflow-hidden rounded-lg bg-white p-0 hover:bg-slate-100"
           aria-label="Go to landing page"
         >
           <img src="/images/Designer.png" alt="Local Lens logo" className="block h-full w-full object-contain" />

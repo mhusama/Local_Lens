@@ -26,7 +26,14 @@ export const createUser = async (req, res) => {
             return res.status(400).json({ message: "Username, name, email, password, and phone are required" });
         }
 
-        const existing = await User.findOne({ $or: [{ email }, { username }] });
+        const normalizedEmail = String(email).trim().toLowerCase();
+
+        const existing = await User.findOne({
+            $or: [
+                { email: new RegExp(`^${String(normalizedEmail).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+                { username },
+            ],
+        });
         if (existing) {
             return res.status(400).json({ message: "User with this email or username already exists" });
         }
@@ -47,7 +54,7 @@ export const createUser = async (req, res) => {
         const newUser = new User({
             username,
             name,
-            email,
+            email: normalizedEmail,
             password: hashedPassword,
             phone,
             location: {

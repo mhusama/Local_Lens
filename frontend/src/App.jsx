@@ -3,6 +3,8 @@ import ShopDetails from './pages/ShopDetails.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import LandingPage from './pages/LandingPage.jsx';
 import SignIn from './pages/SignIn.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 import SearchedItem from './pages/SearchedItem.jsx';
 import CategoryPage from './pages/CategoryPage.jsx';
 import ComparePage from './pages/ComparePage.jsx';
@@ -16,12 +18,14 @@ import CreateAccount from './pages/CreateAccount.jsx';
 import CreateShop from './pages/CreateShop.jsx';
 import ProductDetails from './pages/ProductDetails.jsx';
 import ContactUs from './pages/ContactUs.jsx';
+import FollowingPage from './pages/FollowingPage.jsx';
 import AdminShell from './layouts/AdminShell.jsx';
 import RequireAdminOutlet from './layouts/RequireAdminOutlet.jsx';
 import AdminLogin from './pages/admin/AdminLogin.jsx';
 import AdminSignup from './pages/admin/AdminSignup.jsx';
 import AdminHome from './pages/admin/AdminHome.jsx';
 import AdminReports from './pages/admin/AdminReports.jsx';
+import AdminContactMessages from './pages/admin/AdminContactMessages.jsx';
 import { ADMIN_PORTAL_BASE, ADMIN_SECRET_SIGNUP_SEGMENT } from './constants/adminPortal';
 
 function readClientSession() {
@@ -80,9 +84,13 @@ function App() {
           <Route element={<RequireAdminOutlet />}>
             <Route index element={<AdminHome />} />
             <Route path="reports" element={<AdminReports />} />
+            <Route path="contact-messages" element={<AdminContactMessages />} />
             <Route path="*" element={<Navigate to={ADMIN_PORTAL_BASE} replace />} />
           </Route>
         </Route>
+
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route element={<AppLayout />}>
           <Route path="/" element={<LandingPage />} />
@@ -116,6 +124,14 @@ function App() {
             }
           />
           <Route path="/wishlist" element={<WishlistPage />} />
+          <Route
+            path="/following"
+            element={
+              <SignedInRoute>
+                <FollowingPage />
+              </SignedInRoute>
+            }
+          />
           <Route path="/contact" element={<ContactUs />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

@@ -43,6 +43,9 @@ export default function AdminNavbar() {
           <NavLink to={`${ADMIN_PORTAL_BASE}/reports`} className={linkClass}>
             Reports
           </NavLink>
+          <NavLink to={`${ADMIN_PORTAL_BASE}/contact-messages`} className={linkClass}>
+            Contact
+          </NavLink>
         </nav>
 
         <div className="flex w-full items-center justify-end gap-2 sm:w-auto">

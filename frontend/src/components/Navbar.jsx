@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { PRODUCT_CATEGORIES, categoryToSlug } from '../constants/categories';
+import NotificationBell from './NotificationBell';
 
 function categoryFromQuery(q) {
   const lower = String(q || '').trim().toLowerCase();
@@ -21,15 +22,20 @@ export default function Navbar() {
   const location = useLocation();
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [searchMode, setSearchMode] = useState('product');
 
   useEffect(() => {
     if (!location.pathname.startsWith('/search')) {
       setSelectedCategory('');
+      setSearchMode('product');
       return;
     }
-    const qFromUrl = new URLSearchParams(location.search).get('q') ?? '';
+    const params = new URLSearchParams(location.search);
+    const qFromUrl = params.get('q') ?? '';
+    const typeFromUrl = (params.get('type') || 'product').toLowerCase();
+    setSearchMode(typeFromUrl === 'shop' ? 'shop' : 'product');
     setQuery(qFromUrl);
-    setSelectedCategory(categoryFromQuery(qFromUrl) || '');
+    setSelectedCategory(typeFromUrl === 'shop' ? '' : categoryFromQuery(qFromUrl) || '');
   }, [location.pathname, location.search]);
 
   const user = getStoredUser();
@@ -62,6 +68,26 @@ export default function Navbar() {
     navigate(`/search?${params.toString()}`);
   };
 
+  const runShopSearch = (q) => {
+    const trimmed = String(q || '').trim();
+    const params = new URLSearchParams();
+    params.set('type', 'shop');
+    if (trimmed) {
+      params.set('q', trimmed);
+    } else {
+      params.set('browse', 'all');
+    }
+    navigate(`/search?${params.toString()}`);
+  };
+
+  const handleSearchModeChange = (e) => {
+    const mode = e.target.value === 'shop' ? 'shop' : 'product';
+    setSearchMode(mode);
+    if (mode === 'shop') {
+      setSelectedCategory('');
+    }
+  };
+
   const handleCategoryChange = (e) => {
     const cat = e.target.value;
     setSelectedCategory(cat);
@@ -78,6 +104,12 @@ export default function Navbar() {
   const handleSearch = (e) => {
     e.preventDefault();
     const trimmed = query.trim();
+
+    if (searchMode === 'shop') {
+      runShopSearch(trimmed);
+      return;
+    }
+
     if (!trimmed) {
       setSelectedCategory('');
       runProductSearch('');
@@ -91,6 +123,7 @@ export default function Navbar() {
   const primaryNavItems = [
     { label: 'Home', onClick: () => navigate('/') },
     { label: 'My Shops', onClick: () => goProtected('/dashboard') },
+    { label: 'Following', onClick: () => goProtected('/following') },
     { label: 'Compare', onClick: () => navigate('/compare') },
     { label: 'Contact Us', onClick: () => navigate('/contact') },
   ];
@@ -112,27 +145,40 @@ export default function Navbar() {
 
         <form onSubmit={handleSearch} className="order-3 flex w-full items-center gap-2 md:order-none md:w-auto md:flex-1">
           <select
-            value={selectedCategory}
-            onChange={handleCategoryChange}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 sm:max-w-[11rem]"
-            aria-label="Product category"
+            value={searchMode}
+            onChange={handleSearchModeChange}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 sm:max-w-[10.5rem]"
+            aria-label="Search type"
           >
-            <option value="">All categories</option>
-            {PRODUCT_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
+            <option value="product">Search products</option>
+            <option value="shop">Search by shops</option>
           </select>
+          {searchMode === 'product' ? (
+            <select
+              value={selectedCategory}
+              onChange={handleCategoryChange}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 sm:max-w-[11rem]"
+              aria-label="Product category"
+            >
+              <option value="">All categories</option>
+              {PRODUCT_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <input
             type="search"
             value={query}
             onChange={(e) => {
               const next = e.target.value;
               setQuery(next);
-              setSelectedCategory(categoryFromQuery(next) || '');
+              if (searchMode === 'product') {
+                setSelectedCategory(categoryFromQuery(next) || '');
+              }
             }}
-            placeholder="Search products..."
+            placeholder={searchMode === 'shop' ? 'Search shops...' : 'Search products...'}
             className="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
           />
           <button
@@ -179,6 +225,7 @@ export default function Navbar() {
               {item.label}
             </button>
           ))}
+          {loggedIn ? <NotificationBell /> : null}
         </nav>
       </div>
     </header>

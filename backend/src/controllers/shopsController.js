@@ -177,6 +177,25 @@ export const getShopsByOwner = async (req, res) => {
     }
 };
 
+export const getFollowedShops = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        if (!userId) {
+            return res.status(400).json({ message: "userId is required" });
+        }
+
+        const shops = await Shop.find({ followerIds: userId })
+            .populate("user_id", "name email")
+            .sort({ shopName: 1 })
+            .lean();
+
+        return res.status(200).json({ shops });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
 export const updateShop = async (req, res) => {
     try {
         const { shopId } = req.params;

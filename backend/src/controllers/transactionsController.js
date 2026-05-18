@@ -2,6 +2,7 @@ import Cart from "../models/Cart.js";
 import Transaction from "../models/Transaction.js";
 import Shop from "../models/Shop.js";
 import mongoose from "mongoose";
+import { notifyCheckout } from "../services/notificationService.js";
 
 const cartPopulate = {
     path: "productId",
@@ -60,6 +61,17 @@ export const checkoutFromCart = async (req, res) => {
         });
 
         await Cart.deleteMany({ userId });
+
+        try {
+            await notifyCheckout({
+                buyerId: userId,
+                transactionId: transaction._id,
+                items,
+                total,
+            });
+        } catch (notifyErr) {
+            console.error("Failed to create checkout notifications:", notifyErr);
+        }
 
         const saved = await Transaction.findById(transaction._id).lean();
 

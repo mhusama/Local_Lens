@@ -510,7 +510,9 @@ export default function ShopDetails() {
         sender_id: senderId,
         recipient_id: recipientId,
         message: messageText.trim(),
+        shop_id: shopId,
       });
+      window.dispatchEvent(new CustomEvent('notifications-changed'));
       setMessageText('');
       await loadConversation();
     } catch (err) {

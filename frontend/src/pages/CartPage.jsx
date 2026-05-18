@@ -138,6 +138,7 @@ export default function CartPage() {
     setCheckingOut(true);
     try {
       await api.post('/transactions/checkout', { userId });
+      window.dispatchEvent(new CustomEvent('notifications-changed'));
       toast.success('Order placed successfully');
       setItems([]);
       navigate('/transactions');

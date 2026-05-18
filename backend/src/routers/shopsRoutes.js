@@ -1,5 +1,14 @@
 import express from "express";
-import { getShops, createShop, getShopsByOwner, getShopById, updateShop, deleteShop, followShop } from "../controllers/shopsController.js";
+import {
+    getShops,
+    createShop,
+    getShopsByOwner,
+    getFollowedShops,
+    getShopById,
+    updateShop,
+    deleteShop,
+    followShop,
+} from "../controllers/shopsController.js";
 import { uploadProductImages } from "../middleware/upload.js";
 
 const router = express.Router();
@@ -14,6 +23,7 @@ router.post(
     createShop,
 );
 router.get("/owner/:ownerId", getShopsByOwner);
+router.get("/following/:userId", getFollowedShops);
 router.get("/:shopId", getShopById);
 router.put(
     "/:shopId",

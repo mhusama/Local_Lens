@@ -82,9 +82,14 @@ export default function SignIn() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1.5">
-                Password
-              </label>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+                  Password
+                </label>
+                <Link to="/forgot-password" className="text-sm font-medium text-slate-600 hover:text-slate-900 whitespace-nowrap">
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 id="password"
                 type="password"

@@ -13,6 +13,7 @@ import transactionsRoutes from "./routers/transactionsRoutes.js";
 import contactRoutes from "./routers/contactRoutes.js";
 import reportsRoutes from "./routers/reportsRoutes.js";
 import reviewsRoutes from "./routers/reviewsRoutes.js";
+import notificationsRoutes from "./routers/notificationsRoutes.js";
 import {connectDB} from "./config/db.js";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -43,6 +44,7 @@ app.use("/api/transactions", transactionsRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/reviews", reviewsRoutes);
+app.use("/api/notifications", notificationsRoutes);
 
 app.listen(port, () => {
     console.log("Server is running on port " + port);

@@ -34,3 +34,18 @@ export const submitContactMessage = async (req, res) => {
         return res.status(500).json({ message: "Server error" });
     }
 };
+
+export const listContactMessages = async (req, res) => {
+    try {
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500);
+        const messages = await ContactMessage.find({})
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .lean();
+
+        return res.status(200).json({ messages, total: messages.length });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};

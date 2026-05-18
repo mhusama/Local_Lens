@@ -8,6 +8,7 @@ import { adminAuthHeader, getAdminUser } from '../../utils/adminAuth';
 export default function AdminHome() {
   const admin = getAdminUser();
   const [stats, setStats] = useState({ total: 0, pending: 0, loading: true });
+  const [contactCount, setContactCount] = useState({ total: 0, loading: true });
   const [adminTxOpen, setAdminTxOpen] = useState(false);
   const [adminTxLoading, setAdminTxLoading] = useState(false);
   const [adminTxList, setAdminTxList] = useState([]);
@@ -27,6 +28,22 @@ export default function AdminHome() {
           const msg = err.response?.data?.message || err.message || 'Could not load reports';
           toast.error(msg);
         }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get('/contact', { headers: adminAuthHeader(), params: { limit: 300 } });
+        const list = Array.isArray(data?.messages) ? data.messages : [];
+        if (!cancelled) setContactCount({ total: list.length, loading: false });
+      } catch {
+        if (!cancelled) setContactCount({ total: 0, loading: false });
       }
     })();
     return () => {
@@ -73,12 +90,15 @@ export default function AdminHome() {
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-slate-600">Quick actions</p>
+          <p className="text-sm font-medium text-slate-600">Contact messages</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-900">
+            {contactCount.loading ? '…' : contactCount.total}
+          </p>
           <Link
-            to={`${ADMIN_PORTAL_BASE}/reports`}
+            to={`${ADMIN_PORTAL_BASE}/contact-messages`}
             className="mt-4 inline-flex rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
           >
-            View all reports
+            View inbox
           </Link>
         </div>
         <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">

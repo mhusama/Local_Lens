@@ -152,11 +152,11 @@ export default function CategoryPage() {
                   key={product.id}
                   className="group overflow-visible rounded-[2rem] bg-white shadow-[0_20px_80px_rgba(15,23,42,0.08)] transition hover:-translate-y-1"
                 >
-                  <div className="relative h-80 overflow-hidden">
+                  <div className="relative h-80 overflow-hidden bg-slate-100">
                     <img
                       src={cover}
                       alt={product.name}
-                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                      className="h-full w-full object-contain transition duration-500"
                     />
                     {index < 3 && (
                       <div className="absolute left-4 top-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-center text-xs uppercase tracking-[0.25em] text-white shadow-xl">

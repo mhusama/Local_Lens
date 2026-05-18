@@ -357,7 +357,7 @@ export default function ProductDetails() {
           <div>
             <div className="h-80 overflow-hidden rounded-2xl bg-slate-100 sm:h-[420px]">
               {images[activeImageIdx] ? (
-                <img src={images[activeImageIdx]} alt={product.name} className="h-full w-full object-cover" />
+                <img src={images[activeImageIdx]} alt={product.name} className="h-full w-full object-contain" />
               ) : (
                 <div className="flex h-full items-center justify-center text-slate-500">No image</div>
               )}
@@ -371,7 +371,7 @@ export default function ProductDetails() {
                     onClick={() => setActiveImageIdx(idx)}
                     className={`h-16 w-20 shrink-0 overflow-hidden rounded border ${idx === activeImageIdx ? 'border-slate-900' : 'border-slate-300'}`}
                   >
-                    <img src={img} alt={`${product.name}-${idx + 1}`} className="h-full w-full object-cover" />
+                    <img src={img} alt={`${product.name}-${idx + 1}`} className="h-full w-full object-contain" />
                   </button>
                 ))}
               </div>

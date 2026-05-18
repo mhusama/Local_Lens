@@ -7,22 +7,22 @@ const banners = [
     id: 1,
     alt: 'Banner 1',
     image: '/images/Banner1.png',
-    headline: 'Fresh Vegetables Natural Farm',
-    subheadline: 'Premium organic produce delivered fast for your every meal.',
+    headline: 'Empower Your Digital Lifestyle',
+    subheadline: ' Discover top-tier smart devices and cutting-edge tech designed to keep you connected, productive, and ahead of the curve.',
   },
   {
     id: 2,
     alt: 'Banner 2',
     image: '/images/banner2.png',
-    headline: 'Healthy Picks for Every Day',
-    subheadline: 'Explore curated fresh items and seasonal favorites.',
+    headline: 'Your Daily Dose of Radiance',
+    subheadline: 'Elevate your self-care routine with premium skincare essentials formulated to nourish, protect, and unveil your natural glow.',
   },
   {
     id: 3,
     alt: 'Banner 3',
     image: '/images/banner3.png',
-    headline: 'Top Quality Grocery Choices',
-    subheadline: 'Shop with confidence from our selected best sellers.',
+    headline: 'Big Clean, Small Price',
+    subheadline: 'Stock up on top-rated everyday essentials that deliver maximum shine and freshness without breaking your budget.',
   },
 ];
 
@@ -99,7 +99,7 @@ export default function LandingPage() {
               {
                 category: PRODUCT_CATEGORIES[3],
                 desc: 'Daily essentials and staples with trusted quality and prices.',
-                img: '/images/pic1.png',
+                img: '/images/pic1.jpg',
               },
               {
                 category: PRODUCT_CATEGORIES[4],
@@ -113,7 +113,7 @@ export default function LandingPage() {
               },
             ].map((cat) => (
               <div key={cat.category} className="group relative overflow-hidden rounded-xl shadow-lg transition hover:shadow-2xl">
-                <img src={cat.img} alt={cat.category} className="h-80 w-full object-cover" />
+                <img src={cat.img} alt={cat.category} className="h-80 w-full object-contain bg-slate-100" />
                 <div className="absolute inset-x-0 bottom-0 p-6 text-left">
                   <h3
                     className="mb-2 text-3xl font-bold text-white"

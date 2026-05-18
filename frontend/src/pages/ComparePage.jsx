@@ -317,7 +317,7 @@ export default function ComparePage() {
           >
             <div className="relative mx-auto h-28 w-28 overflow-hidden rounded-2xl bg-slate-100">
               {img ? (
-                <img src={img} alt={product.name} className="h-full w-full object-cover" />
+                <img src={img} alt={product.name} className="h-full w-full object-contain" />
               ) : (
                 <div className="flex h-full items-center justify-center text-xs text-slate-400">No image</div>
               )}
@@ -511,7 +511,7 @@ export default function ComparePage() {
                     </button>
                     <div className="h-28 overflow-hidden rounded-t-2xl bg-slate-200">
                       {img ? (
-                        <img src={img} alt={product?.name} className="h-full w-full object-cover" />
+                        <img src={img} alt={product?.name} className="h-full w-full object-contain" />
                       ) : (
                         <div className="flex h-full items-center justify-center text-[10px] text-slate-500">No image</div>
                       )}
@@ -535,7 +535,7 @@ export default function ComparePage() {
                       <img
                         src={toAssetUrl(slot1.productId.images[0])}
                         alt={slot1.productId?.name}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-contain"
                       />
                     ) : null}
                   </div>
@@ -557,7 +557,7 @@ export default function ComparePage() {
                       <img
                         src={toAssetUrl(slot2.productId.images[0])}
                         alt={slot2.productId?.name}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-contain"
                       />
                     ) : null}
                   </div>

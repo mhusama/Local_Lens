@@ -1,7 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
 import toast from 'react-hot-toast';
 import api from '../api/client';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+import 'leaflet/dist/leaflet.css';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
 
 const normalizeTag = (value) => String(value || '').trim().toLowerCase();
 const uniqueTags = (tags) => {
@@ -26,27 +40,53 @@ const toAssetUrl = (value, fallback) => {
   return value.startsWith('/uploads/') ? `http://localhost:5001${value}` : value;
 };
 
+const DEFAULT_MAP_CENTER = [23.8103, 90.4125];
+
+function LocationPicker({ position, setPosition }) {
+  useMapEvents({
+    click(event) {
+      setPosition([event.latlng.lat, event.latlng.lng]);
+    },
+  });
+
+  if (!position) return null;
+  return <Marker position={position} />;
+}
+
+function MapCenterUpdater({ center }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!center) return;
+    map.setView(center, 14);
+  }, [center, map]);
+
+  return null;
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editingShop, setEditingShop] = useState(null);
+  const [locationEditShop, setLocationEditShop] = useState(null);
   const [submittingEdit, setSubmittingEdit] = useState(false);
+  const [submittingLocation, setSubmittingLocation] = useState(false);
   const [editForm, setEditForm] = useState({
     shopName: '',
     description: '',
     category: '',
     phone: '',
     openingHours: '',
-    longitude: '',
-    latitude: '',
     isOpen: true,
   });
   const [profilePictureFile, setProfilePictureFile] = useState(null);
   const [bannerImageFile, setBannerImageFile] = useState(null);
   const [profilePreview, setProfilePreview] = useState('');
   const [bannerPreview, setBannerPreview] = useState('');
+  const [mapCenter, setMapCenter] = useState(DEFAULT_MAP_CENTER);
+  const [mapLocation, setMapLocation] = useState(null);
   const [locationQuery, setLocationQuery] = useState('');
   const [searchingLocation, setSearchingLocation] = useState(false);
   const [locationSuggestions, setLocationSuggestions] = useState([]);
@@ -86,7 +126,6 @@ export default function Dashboard() {
   }, [user?.id]);
 
   const openEditShop = (shop) => {
-    const coords = shop?.location?.coordinates;
     setEditingShop(shop);
     setEditForm({
       shopName: shop.shopName || '',
@@ -94,19 +133,12 @@ export default function Dashboard() {
       category: shop.category || '',
       phone: shop.phone || '',
       openingHours: shop.openingHours || '',
-      longitude: Array.isArray(coords) ? String(coords[0]) : '',
-      latitude: Array.isArray(coords) ? String(coords[1]) : '',
       isOpen: Boolean(shop.isOpen),
     });
     setProfilePictureFile(null);
     setBannerImageFile(null);
     setProfilePreview('');
     setBannerPreview('');
-    setLocationQuery('');
-    setLocationSuggestions([]);
-    setShowSuggestions(false);
-    setLocationNotFound(false);
-    setActiveSuggestionIdx(-1);
     const auto = uniqueTags([shop.shopName, shop.category]);
     const autoSet = new Set(auto);
     const existingTags = Array.isArray(shop.tags) ? shop.tags : [];
@@ -140,18 +172,59 @@ export default function Dashboard() {
     setEditTagError('');
   };
 
-  const applySuggestion = (item) => {
-    const lon = Number(item.lon);
+  const openEditLocation = (shop) => {
+    const coords = shop?.location?.coordinates;
+    const lon = Array.isArray(coords) ? Number(coords[0]) : null;
+    const lat = Array.isArray(coords) ? Number(coords[1]) : null;
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lon);
+
+    setLocationEditShop(shop);
+    setMapLocation(hasCoords ? [lat, lon] : null);
+    setMapCenter(hasCoords ? [lat, lon] : DEFAULT_MAP_CENTER);
+    setLocationQuery('');
+    setLocationSuggestions([]);
+    setShowSuggestions(false);
+    setLocationNotFound(false);
+    setActiveSuggestionIdx(-1);
+  };
+
+  const applyMapSuggestion = (item) => {
     const lat = Number(item.lat);
-    setEditForm((prev) => ({
-      ...prev,
-      longitude: Number.isFinite(lon) ? String(lon) : prev.longitude,
-      latitude: Number.isFinite(lat) ? String(lat) : prev.latitude,
-    }));
+    const lon = Number(item.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    const next = [lat, lon];
+    setMapCenter(next);
+    setMapLocation(next);
     setLocationQuery(item.display_name || '');
     setShowSuggestions(false);
     setActiveSuggestionIdx(-1);
     setLocationNotFound(false);
+  };
+
+  const handleLocationSearch = async () => {
+    const query = locationQuery.trim();
+    if (!query) return;
+
+    setSearchingLocation(true);
+    setLocationNotFound(false);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`,
+      );
+      const data = await response.json();
+      const match = data?.[0];
+      if (!match) {
+        setLocationNotFound(true);
+        toast.error('Location not found. Try a more specific place name.');
+        return;
+      }
+      applyMapSuggestion(match);
+      toast.success('Location found on map');
+    } catch {
+      toast.error('Unable to search location right now');
+    } finally {
+      setSearchingLocation(false);
+    }
   };
 
   const handleDeleteShop = async (shopId) => {
@@ -175,13 +248,6 @@ export default function Dashboard() {
       return;
     }
 
-    const lon = Number(editForm.longitude);
-    const lat = Number(editForm.latitude);
-    if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
-      toast.error('Valid longitude and latitude are required');
-      return;
-    }
-
     setSubmittingEdit(true);
     try {
       const formData = new FormData();
@@ -191,8 +257,6 @@ export default function Dashboard() {
       formData.append('phone', editForm.phone.trim());
       formData.append('openingHours', editForm.openingHours.trim());
       formData.append('tags', JSON.stringify(editAllTags));
-      formData.append('longitude', String(lon));
-      formData.append('latitude', String(lat));
       formData.append('isOpen', String(editForm.isOpen));
       if (profilePictureFile) formData.append('profilePicture', profilePictureFile);
       if (bannerImageFile) formData.append('bannerImage', bannerImageFile);
@@ -211,8 +275,37 @@ export default function Dashboard() {
     }
   };
 
+  const handleSaveLocation = async (e) => {
+    e.preventDefault();
+    if (!locationEditShop?._id) return;
+    if (!mapLocation) {
+      toast.error('Click on the map to set the shop location');
+      return;
+    }
+
+    const [lat, lon] = mapLocation;
+    setSubmittingLocation(true);
+    try {
+      const formData = new FormData();
+      formData.append('longitude', String(lon));
+      formData.append('latitude', String(lat));
+
+      await api.put(`/shops/${locationEditShop._id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      toast.success('Shop location updated');
+      setLocationEditShop(null);
+      fetchShops();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to update location';
+      toast.error(msg);
+    } finally {
+      setSubmittingLocation(false);
+    }
+  };
+
   useEffect(() => {
-    if (!editingShop) return;
+    if (!locationEditShop) return;
     const query = locationQuery.trim();
     if (!query) {
       setLocationSuggestions([]);
@@ -243,7 +336,7 @@ export default function Dashboard() {
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [locationQuery, editingShop]);
+  }, [locationQuery, locationEditShop]);
 
   useEffect(() => {
     const onClickOutside = (event) => {
@@ -354,6 +447,16 @@ export default function Dashboard() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
+                        openEditLocation(shop);
+                      }}
+                      className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50"
+                    >
+                      Edit location
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
                         handleDeleteShop(shop._id);
                       }}
                       className="flex-1 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
@@ -380,69 +483,6 @@ export default function Dashboard() {
               <input value={editForm.category} onChange={(e) => setEditForm((prev) => ({ ...prev, category: e.target.value }))} placeholder="Category" className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
               <input value={editForm.phone} onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))} placeholder="Phone" className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
               <input value={editForm.openingHours} onChange={(e) => setEditForm((prev) => ({ ...prev, openingHours: e.target.value }))} placeholder="Opening hours" className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
-              <div ref={locationSearchRef} className="sm:col-span-2">
-                <label className="mb-1 block text-sm font-medium text-slate-700">Search location</label>
-                <div className="relative">
-                  <input
-                    value={locationQuery}
-                    onChange={(e) => {
-                      setLocationQuery(e.target.value);
-                      setShowSuggestions(true);
-                    }}
-                    onFocus={() => {
-                      if (locationSuggestions.length > 0 || locationNotFound) setShowSuggestions(true);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        if (showSuggestions && activeSuggestionIdx >= 0 && locationSuggestions[activeSuggestionIdx]) {
-                          applySuggestion(locationSuggestions[activeSuggestionIdx]);
-                        }
-                        return;
-                      }
-                      if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        if (!locationSuggestions.length) return;
-                        setShowSuggestions(true);
-                        setActiveSuggestionIdx((prev) => (prev + 1) % locationSuggestions.length);
-                      }
-                      if (e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        if (!locationSuggestions.length) return;
-                        setShowSuggestions(true);
-                        setActiveSuggestionIdx((prev) => (prev <= 0 ? locationSuggestions.length - 1 : prev - 1));
-                      }
-                      if (e.key === 'Escape') setShowSuggestions(false);
-                    }}
-                    placeholder="Search by address, area, or city"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900"
-                  />
-                  {showSuggestions && (
-                    <div className="absolute z-[1000] mt-1 max-h-64 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
-                      {locationSuggestions.map((item, idx) => (
-                        <button
-                          key={`${item.place_id}-${idx}`}
-                          type="button"
-                          onClick={() => applySuggestion(item)}
-                          className={`block w-full px-3 py-2 text-left text-sm ${
-                            idx === activeSuggestionIdx ? 'bg-slate-100 text-slate-900' : 'text-slate-700 hover:bg-slate-50'
-                          }`}
-                        >
-                          {item.display_name}
-                        </button>
-                      ))}
-                      {!searchingLocation && locationNotFound && (
-                        <div className="px-3 py-2 text-sm text-slate-500">No locations found.</div>
-                      )}
-                      {searchingLocation && (
-                        <div className="px-3 py-2 text-sm text-slate-500">Searching locations...</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <input type="number" step="any" value={editForm.longitude} onChange={(e) => setEditForm((prev) => ({ ...prev, longitude: e.target.value }))} placeholder="Longitude" className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
-              <input type="number" step="any" value={editForm.latitude} onChange={(e) => setEditForm((prev) => ({ ...prev, latitude: e.target.value }))} placeholder="Latitude" className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
               <textarea value={editForm.description} onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))} rows={3} placeholder="Description" className="sm:col-span-2 rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
               <div className="sm:col-span-2 rounded-lg border border-slate-300 p-3">
                 <p className="text-sm font-medium text-slate-700">Search tags</p>
@@ -509,6 +549,144 @@ export default function Dashboard() {
                 <button type="button" onClick={() => setEditingShop(null)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
                 <button type="submit" disabled={submittingEdit} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60">
                   {submittingEdit ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {locationEditShop && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/45 p-4">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">Edit location</h3>
+                <p className="mt-1 text-sm text-slate-600">{locationEditShop.shopName}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLocationEditShop(null)}
+                className="rounded px-2 py-1 text-slate-600 hover:bg-slate-100"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleSaveLocation} className="space-y-4">
+              <p className="text-sm text-slate-600">Click on the map to place the pin, or search for an address.</p>
+              <div ref={locationSearchRef}>
+                <label htmlFor="edit-shop-location-search" className="mb-1 block text-sm font-medium text-slate-700">
+                  Search location on map
+                </label>
+                <div className="relative">
+                  <div className="flex gap-2">
+                    <input
+                      id="edit-shop-location-search"
+                      type="text"
+                      value={locationQuery}
+                      onChange={(e) => {
+                        setLocationQuery(e.target.value);
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => {
+                        if (locationSuggestions.length > 0 || locationNotFound) setShowSuggestions(true);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (showSuggestions && activeSuggestionIdx >= 0 && locationSuggestions[activeSuggestionIdx]) {
+                            applyMapSuggestion(locationSuggestions[activeSuggestionIdx]);
+                          } else {
+                            void handleLocationSearch();
+                          }
+                          return;
+                        }
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          if (!locationSuggestions.length) return;
+                          setShowSuggestions(true);
+                          setActiveSuggestionIdx((prev) => (prev + 1) % locationSuggestions.length);
+                        }
+                        if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          if (!locationSuggestions.length) return;
+                          setShowSuggestions(true);
+                          setActiveSuggestionIdx((prev) => (prev <= 0 ? locationSuggestions.length - 1 : prev - 1));
+                        }
+                        if (e.key === 'Escape') setShowSuggestions(false);
+                      }}
+                      placeholder="Search by address, area, or city"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-900"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleLocationSearch();
+                      }}
+                      disabled={searchingLocation}
+                      className="shrink-0 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {searchingLocation ? 'Searching…' : 'Search'}
+                    </button>
+                  </div>
+                  {showSuggestions && (
+                    <div className="absolute z-[1000] mt-1 max-h-64 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                      {locationSuggestions.map((item, idx) => (
+                        <button
+                          key={`${item.place_id}-${idx}`}
+                          type="button"
+                          onClick={() => applyMapSuggestion(item)}
+                          className={`block w-full px-3 py-2 text-left text-sm ${
+                            idx === activeSuggestionIdx ? 'bg-slate-100 text-slate-900' : 'text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          {item.display_name}
+                        </button>
+                      ))}
+                      {!searchingLocation && locationNotFound && (
+                        <div className="px-3 py-2 text-sm text-slate-500">No locations found.</div>
+                      )}
+                      {searchingLocation && (
+                        <div className="px-3 py-2 text-sm text-slate-500">Searching locations…</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-slate-200">
+                <MapContainer center={mapCenter} zoom={12} className="h-[360px] w-full">
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <MapCenterUpdater center={mapCenter} />
+                  <LocationPicker position={mapLocation} setPosition={setMapLocation} />
+                </MapContainer>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+                {mapLocation ? (
+                  <>
+                    <div>Longitude: {mapLocation[1].toFixed(6)}</div>
+                    <div>Latitude: {mapLocation[0].toFixed(6)}</div>
+                  </>
+                ) : (
+                  'No location selected yet. Click the map to set a pin.'
+                )}
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setLocationEditShop(null)}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingLocation}
+                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+                >
+                  {submittingLocation ? 'Saving…' : 'Save location'}
                 </button>
               </div>
             </form>

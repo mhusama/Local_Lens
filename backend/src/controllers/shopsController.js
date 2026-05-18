@@ -1,4 +1,5 @@
 import Shop from "../models/Shop.js";
+import Product from "../models/Product.js";
 
 const normalizeTag = (value) => String(value || "").trim().toLowerCase();
 
@@ -251,11 +252,22 @@ export const updateShop = async (req, res) => {
             lat = parseFloat(location.coordinates[1]);
         }
 
+        let locationChanged = false;
+        let nextLocation = null;
         if (Number.isFinite(lon) && Number.isFinite(lat)) {
-            shop.location = {
+            const prevCoords = shop.location?.coordinates;
+            const prevLon = Array.isArray(prevCoords) ? parseFloat(prevCoords[0]) : null;
+            const prevLat = Array.isArray(prevCoords) ? parseFloat(prevCoords[1]) : null;
+            locationChanged =
+                !Number.isFinite(prevLon) ||
+                !Number.isFinite(prevLat) ||
+                prevLon !== lon ||
+                prevLat !== lat;
+            nextLocation = {
                 type: "Point",
                 coordinates: [lon, lat],
             };
+            shop.location = nextLocation;
         }
 
         const uploadedProfilePicture = Array.isArray(req.files?.profilePicture) && req.files.profilePicture[0]
@@ -273,6 +285,11 @@ export const updateShop = async (req, res) => {
         }
 
         await shop.save();
+
+        if (locationChanged && nextLocation) {
+            await Product.updateMany({ shop: shop._id }, { $set: { location: nextLocation } });
+        }
+
         await shop.populate("user_id", "name email");
 
         return res.status(200).json({ message: "Shop updated successfully", shop });

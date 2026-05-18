@@ -121,7 +121,7 @@ export default function LandingPage() {
                   >
                     {cat.category}
                   </h3>
-                  <p className="mb-4 text-sm text-white/90" style={{ textShadow: '0 3px 18px rgba(0,0,0,0.6)' }}>
+                  <p className="mb-4 text-sm font-bold text-white" style={{ textShadow: '0 3px 18px rgba(0,0,0,0.6)' }}>
                     {cat.desc}
                   </p>
                   <button
